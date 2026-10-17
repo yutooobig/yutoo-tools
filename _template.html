@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>项目合集</title>
 <meta name="description" content="一个页面，收录所有小项目">
+
+<!-- PWA：添加到主屏幕后以独立窗口运行，不显示浏览器地址栏 -->
+<meta name="theme-color" content="#0b0d10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="项目合集">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <style>
   :root{
     --bg:#0b0d10;
@@ -146,6 +157,26 @@
   var empty = document.getElementById('empty');
   search.addEventListener('input', function () {
     var q = search.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (c) {
+      var hit = !q || (c.dataset.key || '').toLowerCase().indexOf(q) > -1;
+      c.hidden = !hit;
+      if (hit) shown++;
+    });
+    empty.hidden = shown !== 0;
+  });
+})();
+
+// 注册 Service Worker（安装条件之一）。只在 https 或 localhost 下生效。
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () { /* 静默失败，不影响使用 */ });
+  });
+}
+</script>
+</body>
+</html>
+q = search.value.trim().toLowerCase();
     var shown = 0;
     cards.forEach(function (c) {
       var hit = !q || (c.dataset.key || '').toLowerCase().indexOf(q) > -1;

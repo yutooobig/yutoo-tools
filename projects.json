@@ -28,5 +28,11 @@
   "title": "doc 2 txt",
   "desc": "一句话描述",
   "tags": ["页面"]
-  }
+  },
+  {
+  "name": "markdown",
+  "title": "MD 笔记本",
+  "desc": "一句话描述",
+  "tags": ["工具"]
+}
 ]

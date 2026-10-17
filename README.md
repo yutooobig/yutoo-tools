@@ -77,6 +77,16 @@ python3 build.py
 
 首页页脚会显示「构建于 2026-10-17 15:30」这样的时间戳。**刷新后时间戳没变，就是没构建成功或者被缓存了。**
 
+不�` 生成出来的静态 HTML，**不是实时读 `projects.json`**。改了项目文件或 json，要跑一次：
+
+```bash
+python3 build.py
+```
+
+然后**硬刷新**浏览器（Mac `Cmd+Shift+R` / Windows `Ctrl+F5`），否则可能还是缓存里的旧页面。
+
+首页页脚会显示「构建于 2026-10-17 15:30」这样的时间戳。**刷新后时间戳没变，就是没构建成功或者被缓存了。**
+
 不想手动跑就执行 `./serve.sh`，它会先构建再起服务。
 
 ## 本地预览
@@ -131,6 +141,42 @@ npx wrangler pages deploy . --project-name=site-hub
 `<script src="/app.js">`、`<link href="/style.css">`、`fetch('/data.json')` 一旦放到子路径下就指到域名根，直接 404。改成 `./app.js`、`style.css`、`./data.json`。
 
 **2. 目录要带尾斜杠**
+
+链接一律写 `/projects/xxx/`。不带斜杠时，页面里的相对路径可能被解析成 `/projects/app.js`。
+
+**3. 别把带 `functions/` 或 `_worker.js` 的项目直接拷进来**
+
+Cloudflare Pages 会把这些当 Functions/Worker 执行，异常即 `Error 1101`。纯静态项目不需要它们，拷之前先删掉。注意这跟项目里浏览器端跑的 `<script>` 完全无关，客户端 JS 随便用。
+
+**4. 「返回合集」要数清层级**
+
+`projects/demo-a/index.html` 在 `/projects/demo-a/` 下，回首页是 `../../`（上两级）。写成 `../` 只会退到 `/projects/`，那里没有 index.html，就是 404。
+
+子页面每深一层再加一个 `../`：
+
+| 页面位置 | 返回首页写 |
+|---|---|
+| `/projects/foo/` | `../../` |
+| `/projects/foo/sub/` | `../../../` |
+
+不想数层级的话，用一段小 JS 自动算（适配根路径和 `/仓库名/` 两种部署）：
+
+```js
+var i = location.pathname.indexOf('/projects/');
+if (i > -1) {
+  document.querySelector('.back').href = location.pathname.slice(0, i + 1);
+}
+```
+
+## 关于 1101
+
+`Error 1101: Worker threw exception` = 服务端 JS 逻辑接管请求时抛了异常。排查顺序：
+
+1. 仓库里是否有 `functions/`、`_worker.js`、`_middleware.js`、`_routes.json` → 删掉
+2. 看实时日志拿堆栈：`npx wrangler pages deployment tail --project-name 项目名`
+3. 新建只有 `index.html` 的空白项目测试 → 也报说明是账号/平台侧问题
+4. 用 `*.pages.dev` 裸域名访问，排除自定义域与缓存干扰
+�带尾斜杠**
 
 链接一律写 `/projects/xxx/`。不带斜杠时，页面里的相对路径可能被解析成 `/projects/app.js`。
 
