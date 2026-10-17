@@ -6,6 +6,12 @@
     "tags": ["工具", "原生 JS"]
   },
   {
+    "name": "demo-b",
+    "title": "Demo B · 落地页",
+    "desc": "页面型项目示例：演示相对路径资源如何正确加载。",
+    "tags": ["页面"]
+  },
+  {
   "name": "entry-comparison",
   "title": "NAI 提示词对比管理",
   "desc": "一句话描述",
@@ -22,11 +28,5 @@
   "title": "doc 2 txt",
   "desc": "一句话描述",
   "tags": ["页面"]
-  },
-  {
-  "name": "markdown",
-  "title": "MD 笔记本",
-  "desc": "一句话描述",
-  "tags": ["工具"]
   }
 ]

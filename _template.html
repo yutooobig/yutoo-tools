@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目合集</title>
+<meta name="description" content="一个页面，收录所有小项目">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --card:#14181d;
+    --card-hover:#1a2027;
+    --line:#232a32;
+    --text:#e8edf2;
+    --muted:#8b98a5;
+    --accent:#4c8dff;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f5f7fa;
+      --card:#ffffff;
+      --card-hover:#ffffff;
+      --line:#e3e8ee;
+      --text:#111820;
+      --muted:#66707a;
+      --accent:#2563eb;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:64px 24px 96px}
+  header{margin-bottom:40px}
+  h1{
+    font-size:clamp(28px,5vw,42px);
+    line-height:1.2;
+    margin:0 0 12px;
+    letter-spacing:-.02em;
+  }
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  .toolbar{
+    display:flex;gap:12px;align-items:center;
+    margin:28px 0 32px;flex-wrap:wrap;
+  }
+  #search{
+    flex:1;min-width:220px;
+    background:var(--card);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:11px 14px;
+    border-radius:10px;
+    font-size:14px;outline:none;
+    transition:border-color .18s;
+  }
+  #search:focus{border-color:var(--accent)}
+  #search::placeholder{color:var(--muted)}
+  .count{color:var(--muted);font-size:13px;white-space:nowrap}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:16px;
+  }
+  a.card{
+    display:flex;flex-direction:column;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    text-decoration:none;
+    color:inherit;
+    transition:transform .16s ease,border-color .16s ease,background .16s ease;
+    min-height:132px;
+  }
+  a.card:hover{
+    transform:translateY(-3px);
+    border-color:var(--accent);
+    background:var(--card-hover);
+  }
+  a.card[hidden]{display:none}
+  .card h2{
+    font-size:16px;margin:0 0 8px;font-weight:600;
+  }
+  .card p{
+    font-size:13px;line-height:1.6;color:var(--muted);
+    margin:0;flex:1;
+  }
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+  .tag{
+    font-size:11px;color:var(--muted);
+    border:1px solid var(--line);
+    padding:2px 8px;border-radius:20px;
+  }
+  .empty{
+    color:var(--muted);font-size:14px;
+    border:1px dashed var(--line);
+    border-radius:12px;padding:40px;text-align:center;
+  }
+  footer{
+    margin-top:64px;padding-top:24px;
+    border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+</style>
+<noscript>
+  <style>
+    .toolbar{display:none}
+  </style>
+</noscript>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>项目合集</h1>
+    <p class="sub">一个入口，收录全部小项目。</p>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="搜索项目名称或描述…" autocomplete="off">
+    <span class="count">{{COUNT}} 个项目</span>
+  </div>
+
+  <div class="grid" id="grid">
+      {{CARDS}}
+  </div>
+  <div class="empty" id="empty" hidden>没有匹配的项目</div>
+
+  <footer>
+    <span>{{YEAR}} · 构建于 {{BUILT_AT}}</span>
+    <span>GitHub Pages · Cloudflare Pages</span>
+  </footer>
+</div>
+
+<script>
+// 只是一点渐进增强：过滤已经渲染好的卡片。禁用 JS 时所有卡片照常显示、照常可点。
+(function () {
+  var search = document.getElementById('search');
+  var cards = [].slice.call(document.querySelectorAll('#grid .card'));
+  var empty = document.getElementById('empty');
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function (c) {
+      var hit = !q || (c.dataset.key || '').toLowerCase().indexOf(q) > -1;
+      c.hidden = !hit;
+      if (hit) shown++;
+    });
+    empty.hidden = shown !== 0;
+  });
+})();
+</script>
+</body>
+</html>

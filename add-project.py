@@ -54,5 +54,8 @@ def main():
     ).stdout.strip()
     print(hits if hits else '  未发现，路径没问题')
 
+    print('\n重新生成首页…')
+    subprocess.run([sys.executable, os.path.join(root, 'build.py')])
+
 if __name__ == '__main__':
     main()
