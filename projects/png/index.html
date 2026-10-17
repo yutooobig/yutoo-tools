@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG 元数据提取器</title>
+    <style>
+        :root {
+            --primary: #4a6cf7;
+            --primary-dark: #3651c7;
+            --primary-light: #e8edff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #eef2ff 0%, #f8faff 40%, #f0f4ff 100%);
+            min-height: 100vh;
+            color: var(--gray-800);
+            line-height: 1.6;
+            padding: 24px 16px;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+            animation: fadeInDown 0.5s ease;
+        }
+        .header .icon {
+            font-size: 56px;
+            display: block;
+            margin-bottom: 8px;
+            animation: bounce 2s infinite;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--gray-900);
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+        .header h1 .highlight {
+            color: var(--primary);
+        }
+        .header p {
+            color: var(--gray-500);
+            font-size: 1.05rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* 上传区域 */
+        .upload-zone {
+            background: #fff;
+            border: 2.5px dashed var(--gray-300);
+            border-radius: var(--radius);
+            padding: 48px 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            box-shadow: var(--shadow);
+            margin-bottom: 28px;
+            user-select: none;
+        }
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: 0 0 0 4px rgba(74, 108, 247, 0.15), var(--shadow-lg);
+            transform: scale(1.01);
+        }
+        .upload-zone .upload-icon {
+            font-size: 64px;
+            display: block;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+        .upload-zone h2 {
+            font-size: 1.35rem;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .upload-zone p {
+            color: var(--gray-500);
+            font-size: 0.95rem;
+        }
+        .upload-zone .btn-browse {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 10px 28px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            letter-spacing: 0.3px;
+        }
+        .upload-zone .btn-browse:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(74, 108, 247, 0.35);
+        }
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        .upload-zone .file-name {
+            margin-top: 12px;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.95rem;
+            display: none;
+        }
+        .upload-zone.has-file .file-name {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* 错误提示 */
+        .error-banner {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: var(--radius-sm);
+            padding: 14px 20px;
+            color: #dc2626;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            display: none;
+            animation: shake 0.5s ease;
+        }
+        .error-banner.show {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .error-banner .error-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 32px;
+            color: var(--gray-500);
+        }
+        .loading-spinner.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        /* 结果区域 */
+        .results {
+            display: none;
+            animation: fadeInUp 0.5s ease;
+        }
+        .results.show {
+            display: block;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: box-shadow var(--transition);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+            transition: background var(--transition);
+        }
+        .card-header:hover {
+            background: var(--gray-50);
+        }
+        .card-header .card-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .card-header .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            flex: 1;
+        }
+        .card-header .card-count {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 3px 12px;
+            border-radius: 50px;
+        }
+        .card-header .toggle-icon {
+            font-size: 14px;
+            color: var(--gray-400);
+            transition: transform var(--transition);
+        }
+        .card-header .toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        .card-body {
+            padding: 20px 24px;
+        }
+        .card-body.collapsed {
+            display: none;
+        }
+
+        /* 文件信息表格 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .info-item {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            transition: background var(--transition);
+        }
+        .info-item:hover {
+            background: var(--gray-100);
+        }
+        .info-item .info-label {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-item .info-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            word-break: break-all;
+        }
+
+        /* 文本元数据项 */
+        .text-entry {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 16px 18px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary);
+            transition: all var(--transition);
+        }
+        .text-entry:last-child {
+            margin-bottom: 0;
+        }
+        .text-entry:hover {
+            border-left-color: var(--primary-dark);
+            background: var(--gray-100);
+        }
+        .text-entry.zTXt {
+            border-left-color: #8b5cf6;
+        }
+        .text-entry.iTXt {
+            border-left-color: #06b6d4;
+        }
+        .text-entry .entry-header {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .text-entry .entry-keyword {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--gray-800);
+        }
+        .text-entry .entry-keyword-cn {
+            color: var(--gray-400);
+            font-size: 0.85rem;
+        }
+        .text-entry .entry-type-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 50px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .badge-tEXt {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+        .badge-zTXt {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+        .badge-iTXt {
+            background: #cffafe;
+            color: #0e7490;
+        }
+
+        /* 文本值容器（新增） */
+        .entry-value-wrapper {
+            position: relative;
+            margin-top: 4px;
+        }
+        .entry-value {
+            font-size: 0.95rem;
+            color: var(--gray-600);
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            background: #fff;
+            border-radius: 6px;
+            padding: 12px 14px;
+            padding-top: 38px; /* 为复制按钮留出空间 */
+            border: 1px solid var(--gray-200);
+            line-height: 1.7;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* 复制按钮（类似 Markdown 代码块） */
+        .copy-text-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 3;
+            white-space: nowrap;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            letter-spacing: 0.3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .copy-text-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+        .copy-text-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .text-entry .entry-meta {
+            font-size: 0.78rem;
+            color: var(--gray-400);
+            margin-top: 6px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Chunk 列表 */
+        .chunk-table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+        }
+        .chunk-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 500px;
+        }
+        .chunk-table th {
+            background: var(--gray-100);
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 700;
+            color: var(--gray-600);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--gray-200);
+            white-space: nowrap;
+        }
+        .chunk-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--gray-100);
+            color: var(--gray-700);
+            white-space: nowrap;
+        }
+        .chunk-table tr:hover td {
+            background: var(--gray-50);
+        }
+        .chunk-table tr:last-child td {
+            border-bottom: none;
+        }
+        .chunk-table .chunk-type {
+            font-weight: 700;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            color: var(--primary);
+        }
+        .chunk-table .chunk-type.text-chunk {
+            color: #7c3aed;
+        }
+        .chunk-table .chunk-desc {
+            color: var(--gray-400);
+            font-size: 0.8rem;
+            white-space: normal;
+        }
+
+        /* 操作按钮 */
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.3px;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 14px rgba(74, 108, 247, 0.4);
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: #fff;
+            color: var(--gray-600);
+            border: 1.5px solid var(--gray-300);
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #059669;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--gray-400);
+            font-size: 0.95rem;
+        }
+        .empty-state .empty-icon {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        /* Toast 通知 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--gray-900);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.4s ease;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 动画 */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.6rem; }
+            .upload-zone { padding: 32px 20px; }
+            .upload-zone .upload-icon { font-size: 48px; }
+            .card-header { padding: 14px 16px; }
+            .card-body { padding: 14px 16px; }
+            .info-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .info-item { padding: 10px 12px; }
+            .text-entry { padding: 12px 14px; }
+            .action-bar { flex-direction: column; }
+            .btn { justify-content: center; width: 100%; }
+            .copy-text-btn { padding: 3px 8px; font-size: 0.7rem; }
+            .entry-value { padding-top: 34px; }
+        }
+        @media (max-width: 400px) {
+            .info-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 打印 */
+        @media print {
+            .upload-zone, .action-bar, .toast, .copy-text-btn { display: none !important; }
+            body { background: #fff; padding: 0; }
+            .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+            .card-header { cursor: default; }
+            .entry-value { padding-top: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <span class="icon">🖼️</span>
+            <h1>PNG <span class="highlight">元数据</span>提取器</h1>
+            <p>上传PNG图片，提取其中嵌入的文本元数据（tEXt、zTXt、iTXt等）及其他有用信息</p>
+        </header>
+
+        <!-- 上传区域 -->
+        <div class="upload-zone" id="uploadZone">
+            <span class="upload-icon">📁</span>
+            <h2>拖放PNG文件到这里</h2>
+            <p>或点击下方按钮选择文件</p>
+            <button class="btn-browse" type="button">选择 PNG 文件</button>
+            <input type="file" id="fileInput" accept=".png,image/png" aria-label="选择PNG文件">
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <!-- 错误提示 -->
+        <div class="error-banner" id="errorBanner">
+            <span class="error-icon">⚠️</span>
+            <span id="errorText"></span>
+        </div>
+
+        <!-- 加载动画 -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>正在解析PNG文件...</p>
+        </div>
+
+        <!-- 结果区域 -->
+        <div class="results" id="results">
+            <!-- 文件信息卡片 -->
+            <div class="card" id="cardFileInfo">
+                <div class="card-header" onclick="toggleCard('cardFileInfo')">
+                    <span class="card-icon">📄</span>
+                    <span class="card-title">文件概览</span>
+                    <span class="toggle-icon" id="toggle-cardFileInfo">▼</span>
+                </div>
+                <div class="card-body" id="body-cardFileInfo">
+                    <div class="info-grid" id="fileInfoGrid"></div>
+                </div>
+            </div>
+
+            <!-- 图片属性卡片 -->
+            <div class="card" id="cardImageInfo">
+                <div class="card-header" onclick="toggleCard('cardImageInfo')">
+                    <span class="card-icon">🖼️</span>
+                    <span class="card-title">图像属性</span>
+                    <span class="toggle-icon" id="toggle-cardImageInfo">▼</span>
+                </div>
+                <div class="card-body" id="body-cardImageInfo">
+                    <div class="info-grid" id="imageInfoGrid"></div>
+                </div>
+            </div>
+
+            <!-- 文本元数据卡片 -->
+            <div class="card" id="cardTextMeta">
+                <div class="card-header" onclick="toggleCard('cardTextMeta')">
+                    <span class="card-icon">📝</span>
+                    <span class="card-title">文本元数据</span>
+                    <span class="card-count" id="textMetaCount">0</span>
+                    <span class="toggle-icon" id="toggle-cardTextMeta">▼</span>
+                </div>
+                <div class="card-body" id="body-cardTextMeta">
+                    <div id="textMetaContainer"></div>
+                </div>
+            </div>
+
+            <!-- 其他元数据卡片 -->
+            <div class="card" id="cardOtherMeta">
+                <div class="card-header" onclick="toggleCard('cardOtherMeta')">
+                    <span class="card-icon">🔍</span>
+                    <span class="card-title">其他元数据</span>
+                    <span class="toggle-icon" id="toggle-cardOtherMeta">▼</span>
+                </div>
+                <div class="card-body" id="body-cardOtherMeta">
+                    <div id="otherMetaContainer"></div>
+                </div>
+            </div>
+
+            <!-- Chunk 列表卡片 -->
+            <div class="card" id="cardChunkList">
+                <div class="card-header" onclick="toggleCard('cardChunkList')">
+                    <span class="card-icon">🧩</span>
+                    <span class="card-title">Chunk 结构</span>
+                    <span class="card-count" id="chunkCount">0</span>
+                    <span class="toggle-icon" id="toggle-cardChunkList">▼</span>
+                </div>
+                <div class="card-body" id="body-cardChunkList">
+                    <div class="chunk-table-wrapper">
+                        <table class="chunk-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>类型</th>
+                                    <th>长度 (字节)</th>
+                                    <th>偏移量</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chunkTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-bar" id="actionBar">
+                <button class="btn btn-success" onclick="exportText()" title="将提取的文本元数据导出为TXT文件">
+                    ⬇️ 导出文本
+                </button>
+                <button class="btn btn-outline" onclick="copyAllText()" title="复制所有提取的文本到剪贴板">
+                    📋 复制全部
+                </button>
+                <button class="btn btn-outline" onclick="resetTool()" title="清除结果并重新上传">
+                    🔄 重新上传
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 全局状态 ====================
+        let parsedResult = null;
+
+        // ==================== 常量定义 ====================
+        const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        const TEXT_CHUNK_TYPES = new Set(['tEXt', 'zTXt', 'iTXt']);
+
+        const KEYWORD_CN = {
+            'Title': '标题',
+            'Author': '作者',
+            'Description': '描述',
+            'Copyright': '版权',
+            'Creation Time': '创建时间',
+            'CreationTime': '创建时间',
+            'Software': '生成软件',
+            'Disclaimer': '免责声明',
+            'Warning': '警告',
+            'Source': '来源',
+            'Comment': '注释',
+            'Document': '文档',
+            'Image Description': '图像描述',
+            'Make': '制造商',
+            'Model': '型号',
+            'DateTime': '日期时间',
+        };
+
+        const COLOR_TYPE_NAMES = {
+            0: '灰度 (Grayscale)',
+            2: '真彩色 RGB',
+            3: '索引彩色 (调色板)',
+            4: '灰度 + Alpha 透明',
+            6: '真彩色 RGBA (带透明)',
+        };
+
+        const CHUNK_DESCRIPTIONS = {
+            'IHDR': '图像头信息',
+            'PLTE': '调色板',
+            'IDAT': '图像数据',
+            'IEND': '图像结束标记',
+            'tEXt': '标准文本元数据 (Latin-1编码)',
+            'zTXt': '压缩文本元数据 (zlib)',
+            'iTXt': '国际化文本元数据 (UTF-8)',
+            'tIME': '最后修改时间',
+            'pHYs': '物理像素尺寸',
+            'eXIf': 'Exif 元数据',
+            'sRGB': '标准RGB色彩空间',
+            'gAMA': 'Gamma 值',
+            'cHRM': '色度坐标',
+            'bKGD': '背景颜色',
+            'tRNS': '透明度',
+            'sBIT': '有效位深度',
+            'hIST': '直方图',
+            'sPLT': '建议调色板',
+            'iCCP': 'ICC颜色配置文件',
+        };
+
+        // ==================== DOM元素引用 ====================
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileNameEl = document.getElementById('fileName');
+        const errorBanner = document.getElementById('errorBanner');
+        const errorText = document.getElementById('errorText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultsEl = document.getElementById('results');
+        const fileInfoGrid = document.getElementById('fileInfoGrid');
+        const imageInfoGrid = document.getElementById('imageInfoGrid');
+        const textMetaContainer = document.getElementById('textMetaContainer');
+        const textMetaCount = document.getElementById('textMetaCount');
+        const otherMetaContainer = document.getElementById('otherMetaContainer');
+        const chunkTableBody = document.getElementById('chunkTableBody');
+        const chunkCount = document.getElementById('chunkCount');
+        const toast = document.getElementById('toast');
+        const actionBar = document.getElementById('actionBar');
+
+        // ==================== 事件监听 ====================
+        uploadZone.addEventListener('click', (e) => {
+            if (e.target !== fileInput && !e.target.classList.contains('btn-browse')) {
+                fileInput.click();
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // 拖放事件
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.name.toLowerCase().endsWith('.png') || file.type === 'image/png') {
+                    handleFile(file);
+                } else {
+                    showError('请上传PNG格式的图片文件。');
+                }
+            }
+        });
+
+        // ==================== 核心函数 ====================
+
+        async function handleFile(file) {
+            hideError();
+            fileNameEl.textContent = `📎 ${file.name} (${formatFileSize(file.size)})`;
+            uploadZone.classList.add('has-file');
+            loadingSpinner.classList.add('show');
+            resultsEl.classList.remove('show');
+            actionBar.style.display = 'none';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                await new Promise(r => setTimeout(r, 80)); // 短暂延迟让UI更新
+
+                const result = parsePNG(arrayBuffer, file);
+                parsedResult = result;
+
+                // 显示结果
+                displayResults(result);
+                loadingSpinner.classList.remove('show');
+                resultsEl.classList.add('show');
+                actionBar.style.display = 'flex';
+
+                // 平滑滚动到结果
+                setTimeout(() => {
+                    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            } catch (err) {
+                loadingSpinner.classList.remove('show');
+                showError(`解析失败: ${err.message}`);
+                console.error('解析错误:', err);
+            }
+        }
+
+        function parsePNG(buffer, file) {
+            const uint8 = new Uint8Array(buffer);
+            const dataView = new DataView(buffer);
+
+            // 验证PNG签名
+            for (let i = 0; i < 8; i++) {
+                if (uint8[i] !== PNG_SIGNATURE[i]) {
+                    throw new Error('文件不是有效的PNG格式（签名不匹配）');
+                }
+            }
+
+            const chunks = [];
+            let offset = 8;
+            let ihdrInfo = null;
+            const textChunks = [];
+            const otherMeta = [];
+            let hasTextMeta = false;
+
+            while (offset + 8 <= uint8.length) {
+                // 读取chunk长度（4字节，大端序）
+                const length = dataView.getUint32(offset, false);
+                offset += 4;
+
+                // 读取chunk类型（4字节ASCII）
+                const typeBytes = uint8.slice(offset, offset + 4);
+                const type = String.fromCharCode.apply(null, typeBytes);
+                offset += 4;
+
+                // 读取chunk数据
+                const dataStart = offset;
+                const dataEnd = offset + length;
+                if (dataEnd > uint8.length) {
+                    // 数据不足，可能是截断文件
+                    chunks.push({ type, length: uint8.length - dataStart, offset: dataStart, truncated: true });
+                    break;
+                }
+                const chunkData = uint8.slice(dataStart, dataEnd);
+                offset = dataEnd;
+
+                // 读取CRC（4字节）
+                if (offset + 4 <= uint8.length) {
+                    const crc = dataView.getUint32(offset, false);
+                    offset += 4;
+                    chunks.push({ type, length, offset: dataStart, crc, data: chunkData });
+                } else {
+                    chunks.push({ type, length, offset: dataStart, data: chunkData });
+                    offset += 4;
+                }
+
+                // 解析特定chunk
+                if (type === 'IHDR' && length >= 13) {
+                    ihdrInfo = parseIHDR(chunkData);
+                } else if (type === 'tEXt') {
+                    const parsed = parseTextChunk(chunkData);
+                    if (parsed) {
+                        textChunks.push({ type: 'tEXt', ...parsed, offset: dataStart, rawLength: length });
+                        hasTextMeta = true;
+                    }
+                } else if (type === 'zTXt') {
+                    const parsed = parseZTextChunk(chunkData);
+                    if (parsed) {
+                        textChunks.push({ type: 'zTXt', ...parsed, offset: dataStart, rawLength: length });
+                        hasTextMeta = true;
+                    }
+                } else if (type === 'iTXt') {
+                    const parsed = parseITextChunk(chunkData);
+                    if (parsed) {
+                        textChunks.push({ type: 'iTXt', ...parsed, offset: dataStart, rawLength: length });
+                        hasTextMeta = true;
+                    }
+                } else if (type === 'tIME' && length >= 7) {
+                    const parsed = parseTIME(chunkData);
+                    if (parsed) {
+                        otherMeta.push({ type: 'tIME', ...parsed });
+                    }
+                } else if (type === 'pHYs' && length >= 9) {
+                    const parsed = parsePHYS(chunkData, dataView);
+                    if (parsed) {
+                        otherMeta.push({ type: 'pHYs', ...parsed });
+                    }
+                } else if (type === 'eXIf') {
+                    otherMeta.push({
+                        type: 'eXIf',
+                        label: 'Exif 元数据',
+                        description: `包含 ${length} 字节的Exif数据（TIFF格式）`,
+                        detail: '使用Exif查看器可查看详细信息',
+                    });
+                } else if (type === 'sRGB' && length >= 1) {
+                    const intent = chunkData[0];
+                    const intentNames = { 0: '感知', 1: '相对色度', 2: '饱和度', 3: '绝对色度' };
+                    otherMeta.push({
+                        type: 'sRGB',
+                        label: 'sRGB 渲染意图',
+                        value: intentNames[intent] || `未知 (${intent})`,
+                    });
+                } else if (type === 'gAMA' && length >= 4) {
+                    const gamma = dataView.getUint32(dataStart, false) / 100000;
+                    otherMeta.push({
+                        type: 'gAMA',
+                        label: 'Gamma 值',
+                        value: gamma.toFixed(5),
+                    });
+                } else if (type === 'bKGD' && length > 0) {
+                    otherMeta.push({
+                        type: 'bKGD',
+                        label: '背景颜色',
+                        value: `${length} 字节数据`,
+                    });
+                }
+            }
+
+            if (!ihdrInfo) {
+                throw new Error('PNG文件中未找到IHDR头信息');
+            }
+
+            return {
+                fileInfo: {
+                    name: file.name,
+                    size: file.size,
+                    sizeFormatted: formatFileSize(file.size),
+                    type: file.type || 'image/png',
+                    lastModified: file.lastModified ? new Date(file.lastModified).toLocaleString('zh-CN') : '未知',
+                },
+                ihdr: ihdrInfo,
+                chunks,
+                textChunks,
+                otherMeta,
+                hasTextMeta,
+                totalChunkCount: chunks.length,
+                fileBufferSize: uint8.length,
+            };
+        }
+
+        function parseIHDR(data) {
+            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            const width = view.getUint32(0, false);
+            const height = view.getUint32(4, false);
+            const bitDepth = data[8];
+            const colorType = data[9];
+            const compressionMethod = data[10];
+            const filterMethod = data[11];
+            const interlaceMethod = data[12];
+
+            return {
+                width,
+                height,
+                bitDepth,
+                colorType,
+                colorTypeName: COLOR_TYPE_NAMES[colorType] || `未知类型 (${colorType})`,
+                compressionMethod,
+                compressionName: compressionMethod === 0 ? 'deflate/inflate' : `未知 (${compressionMethod})`,
+                filterMethod,
+                filterName: filterMethod === 0 ? '自适应过滤' : `未知 (${filterMethod})`,
+                interlaceMethod,
+                interlaceName: interlaceMethod === 0 ? '无交错' : interlaceMethod === 1 ? 'Adam7交错' : `未知 (${interlaceMethod})`,
+            };
+        }
+
+        function parseTextChunk(data) {
+            const nullIndex = findNullByte(data);
+            if (nullIndex === -1) {
+                return { keyword: decodeLatin1(data), text: '', encoding: 'Latin-1' };
+            }
+            const keyword = decodeLatin1(data.slice(0, nullIndex));
+            const text = decodeLatin1(data.slice(nullIndex + 1));
+            return { keyword, text, encoding: 'Latin-1 (ISO-8859-1)' };
+        }
+
+        async function parseZTextChunk(data) {
+            const nullIndex = findNullByte(data);
+            if (nullIndex === -1) {
+                return { keyword: decodeLatin1(data), text: '', encoding: 'Latin-1', compressed: true };
+            }
+            const keyword = decodeLatin1(data.slice(0, nullIndex));
+            if (nullIndex + 1 >= data.length) {
+                return { keyword, text: '', encoding: 'Latin-1', compressed: true };
+            }
+            const compressionMethod = data[nullIndex + 1];
+            if (compressionMethod !== 0) {
+                return {
+                    keyword,
+                    text: `[错误: 不支持的压缩方法 (${compressionMethod})]`,
+                    encoding: 'Latin-1',
+                    compressed: true,
+                    error: `不支持的压缩方法: ${compressionMethod}`,
+                };
+            }
+            const compressedData = data.slice(nullIndex + 2);
+            try {
+                const decompressed = await decompressZlib(compressedData);
+                const text = decodeLatin1(decompressed);
+                return { keyword, text, encoding: 'Latin-1 (ISO-8859-1)', compressed: true, compressedSize: compressedData.length };
+            } catch (err) {
+                return {
+                    keyword,
+                    text: `[解压失败: ${err.message}]`,
+                    encoding: 'Latin-1',
+                    compressed: true,
+                    error: `解压失败: ${err.message}`,
+                };
+            }
+        }
+
+        async function parseITextChunk(data) {
+            try {
+                const firstNull = findNullByte(data);
+                if (firstNull === -1) {
+                    return { keyword: decodeUTF8(data), text: '', encoding: 'UTF-8' };
+                }
+                const keyword = decodeUTF8(data.slice(0, firstNull));
+
+                let pos = firstNull + 1;
+                if (pos >= data.length) return { keyword, text: '', encoding: 'UTF-8' };
+
+                const compressionFlag = data[pos];
+                pos++;
+
+                let compressionMethod = 0;
+                if (compressionFlag === 1) {
+                    if (pos >= data.length) {
+                        return { keyword, text: '[错误: 数据不完整]', encoding: 'UTF-8' };
+                    }
+                    compressionMethod = data[pos];
+                    pos++;
+                }
+
+                // 找到语言标签（ASCII）
+                const langEnd = findNullByteFrom(data, pos);
+                let language = '';
+                if (langEnd !== -1) {
+                    language = decodeASCII(data.slice(pos, langEnd));
+                    pos = langEnd + 1;
+                } else {
+                    language = '';
+                }
+
+                // 找到翻译关键字（UTF-8）
+                const transEnd = findNullByteFrom(data, pos);
+                let translatedKeyword = '';
+                if (transEnd !== -1) {
+                    translatedKeyword = decodeUTF8(data.slice(pos, transEnd));
+                    pos = transEnd + 1;
+                } else {
+                    translatedKeyword = '';
+                }
+
+                // 剩余数据是文本内容
+                let textData = data.slice(pos);
+                let text;
+                let wasCompressed = false;
+                let compressedSize = 0;
+
+                if (compressionFlag === 1) {
+                    if (compressionMethod !== 0) {
+                        text = `[错误: 不支持的压缩方法 (${compressionMethod})]`;
+                    } else if (textData.length === 0) {
+                        text = '';
+                    } else {
+                        try {
+                            const decompressed = await decompressZlib(textData);
+                            text = decodeUTF8(decompressed);
+                            wasCompressed = true;
+                            compressedSize = textData.length;
+                        } catch (err) {
+                            text = `[解压失败: ${err.message}]`;
+                        }
+                    }
+                } else {
+                    text = decodeUTF8(textData);
+                }
+
+                return {
+                    keyword,
+                    text,
+                    encoding: 'UTF-8',
+                    language: language || '(未指定)',
+                    translatedKeyword: translatedKeyword || '(未指定)',
+                    compressed: wasCompressed,
+                    compressedSize: compressedSize || 0,
+                };
+            } catch (err) {
+                return {
+                    keyword: '(解析错误)',
+                    text: `[解析iTXt失败: ${err.message}]`,
+                    encoding: 'UTF-8',
+                };
+            }
+        }
+
+        function parseTIME(data) {
+            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            const year = view.getUint16(0, false);
+            const month = data[2];
+            const day = data[3];
+            const hour = data[4];
+            const minute = data[5];
+            const second = data[6];
+            if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) {
+                return null;
+            }
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+            return { label: '最后修改时间', value: dateStr, description: 'tIME chunk' };
+        }
+
+        function parsePHYS(data, view) {
+            const view2 = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            const pixelsPerUnitX = view2.getUint32(0, false);
+            const pixelsPerUnitY = view2.getUint32(4, false);
+            const unit = data[8];
+            const unitName = unit === 0 ? '未知单位' : unit === 1 ? '米' : `未知 (${unit})`;
+            const value = `${pixelsPerUnitX} × ${pixelsPerUnitY} 像素/单位 (${unitName})`;
+            return { label: '物理像素尺寸', value, description: 'pHYs chunk' };
+        }
+
+        // ==================== 辅助函数 ====================
+
+        function findNullByte(data) {
+            return findNullByteFrom(data, 0);
+        }
+
+        function findNullByteFrom(data, startIndex) {
+            for (let i = startIndex; i < data.length; i++) {
+                if (data[i] === 0) return i;
+            }
+            return -1;
+        }
+
+        function decodeLatin1(data) {
+            try {
+                return new TextDecoder('iso-8859-1').decode(data);
+            } catch (e) {
+                let result = '';
+                for (let i = 0; i < data.length; i++) {
+                    result += String.fromCharCode(data[i]);
+                }
+                return result;
+            }
+        }
+
+        function decodeUTF8(data) {
+            try {
+                return new TextDecoder('utf-8').decode(data);
+            } catch (e) {
+                let result = '';
+                for (let i = 0; i < data.length; i++) {
+                    result += String.fromCharCode(data[i]);
+                }
+                return result;
+            }
+        }
+
+        function decodeASCII(data) {
+            let result = '';
+            for (let i = 0; i < data.length; i++) {
+                result += String.fromCharCode(data[i] & 0x7F);
+            }
+            return result;
+        }
+
+        async function decompressZlib(data) {
+            if (typeof DecompressionStream === 'undefined') {
+                throw new Error('浏览器不支持DecompressionStream API，请使用最新版Chrome、Firefox或Safari');
+            }
+            try {
+                const blob = new Blob([data]);
+                const decompressionStream = new DecompressionStream('deflate');
+                const stream = blob.stream().pipeThrough(decompressionStream);
+                const response = new Response(stream);
+                const buffer = await response.arrayBuffer();
+                return new Uint8Array(buffer);
+            } catch (err) {
+                throw new Error(`zlib解压失败: ${err.message}`);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+        }
+
+        function getKeywordCN(keyword) {
+            return KEYWORD_CN[keyword] || '';
+        }
+
+        function getChunkDescription(type) {
+            return CHUNK_DESCRIPTIONS[type] || '';
+        }
+
+        // ==================== 显示函数 ====================
+
+        function displayResults(result) {
+            displayFileInfo(result);
+            displayImageInfo(result);
+            displayTextMeta(result);
+            displayOtherMeta(result);
+            displayChunkList(result);
+        }
+
+        function displayFileInfo(result) {
+            const fi = result.fileInfo;
+            const items = [
+                { label: '文件名', value: fi.name },
+                { label: '文件大小', value: fi.sizeFormatted },
+                { label: 'MIME类型', value: fi.type },
+                { label: '最后修改', value: fi.lastModified },
+                { label: 'Chunk总数', value: `${result.totalChunkCount} 个` },
+                { label: '数据大小', value: formatFileSize(result.fileBufferSize) },
+                { label: '文本元数据', value: result.hasTextMeta ? `${result.textChunks.length} 条` : '无' },
+            ];
+            fileInfoGrid.innerHTML = items.map(item => `
+                <div class="info-item">
+                    <span class="info-label">${item.label}</span>
+                    <span class="info-value">${escapeHTML(item.value)}</span>
+                </div>
+            `).join('');
+        }
+
+        function displayImageInfo(result) {
+            const ihdr = result.ihdr;
+            const items = [
+                { label: '宽度', value: `${ihdr.width} 像素` },
+                { label: '高度', value: `${ihdr.height} 像素` },
+                { label: '位深度', value: `${ihdr.bitDepth} 位/通道` },
+                { label: '颜色类型', value: ihdr.colorTypeName },
+                { label: '压缩方法', value: ihdr.compressionName },
+                { label: '过滤方法', value: ihdr.filterName },
+                { label: '交错方式', value: ihdr.interlaceName },
+            ];
+            imageInfoGrid.innerHTML = items.map(item => `
+                <div class="info-item">
+                    <span class="info-label">${item.label}</span>
+                    <span class="info-value">${escapeHTML(item.value)}</span>
+                </div>
+            `).join('');
+        }
+
+        function displayTextMeta(result) {
+            const container = textMetaContainer;
+            const textChunks = result.textChunks;
+
+            textMetaCount.textContent = textChunks.length;
+
+            if (textChunks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <p>此PNG文件中没有找到文本元数据（tEXt / zTXt / iTXt chunk）</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = textChunks.map((entry, index) => {
+                const cnName = getKeywordCN(entry.keyword);
+                const typeClass = entry.type;
+                const badgeClass = entry.type === 'tEXt' ? 'badge-tEXt' : entry.type === 'zTXt' ? 'badge-zTXt' : 'badge-iTXt';
+                const encodingInfo = entry.encoding || '未知';
+                const compressedInfo = entry.compressed ?
+                    ` | 压缩数据: ${entry.compressedSize || '?'} 字节 → 解压后` :
+                    ' | 未压缩';
+                const langInfo = entry.language ? ` | 语言: ${escapeHTML(entry.language)}` : '';
+                const transInfo = entry.translatedKeyword && entry.translatedKeyword !== '(未指定)' ?
+                    ` | 翻译关键字: ${escapeHTML(entry.translatedKeyword)}` : '';
+
+                return `
+                    <div class="text-entry ${typeClass}" data-text-index="${index}">
+                        <div class="entry-header">
+                            <span class="entry-keyword">${escapeHTML(entry.keyword)}</span>
+                            ${cnName ? `<span class="entry-keyword-cn">(${cnName})</span>` : ''}
+                            <span class="entry-type-badge ${badgeClass}">${entry.type}</span>
+                        </div>
+                        <div class="entry-value-wrapper">
+                            <button class="copy-text-btn" data-copy-index="${index}" title="复制此文本块内容">📋 复制</button>
+                            <div class="entry-value">${escapeHTML(entry.text)}</div>
+                        </div>
+                        <div class="entry-meta">
+                            <span>编码: ${escapeHTML(encodingInfo)}</span>
+                            ${compressedInfo}
+                            ${langInfo}
+                            ${transInfo}
+                            <span>Chunk #${index + 1}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayOtherMeta(result) {
+            const container = otherMetaContainer;
+            const otherMeta = result.otherMeta;
+
+            if (otherMeta.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="empty-icon">🔍</span>
+                        <p>没有找到其他元数据（tIME、pHYs、eXIf等）</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = otherMeta.map(meta => {
+                let detailHtml = '';
+                if (meta.description) {
+                    detailHtml = `<span class="entry-meta">${escapeHTML(meta.description)}</span>`;
+                }
+                if (meta.detail) {
+                    detailHtml += `<span class="entry-meta">${escapeHTML(meta.detail)}</span>`;
+                }
+                return `
+                    <div class="text-entry" style="border-left-color:#f59e0b;">
+                        <div class="entry-header">
+                            <span class="entry-keyword">${escapeHTML(meta.label || meta.type)}</span>
+                            <span class="entry-type-badge" style="background:#fef3c7;color:#b45309;">${meta.type}</span>
+                        </div>
+                        <div class="entry-value-wrapper">
+                            <button class="copy-text-btn" data-copy-meta-index="${otherMeta.indexOf(meta)}" title="复制此元数据值">📋 复制</button>
+                            <div class="entry-value">${escapeHTML(meta.value || '')}</div>
+                        </div>
+                        ${detailHtml ? `<div class="entry-meta">${detailHtml}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayChunkList(result) {
+            const chunks = result.chunks;
+            const tbody = chunkTableBody;
+            chunkCount.textContent = chunks.length;
+
+            tbody.innerHTML = chunks.map((chunk, index) => {
+                const isTextChunk = TEXT_CHUNK_TYPES.has(chunk.type);
+                const desc = getChunkDescription(chunk.type);
+                const truncatedNote = chunk.truncated ? ' ⚠️ 截断' : '';
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="chunk-type ${isTextChunk ? 'text-chunk' : ''}">${escapeHTML(chunk.type)}</td>
+                        <td>${chunk.length.toLocaleString()}</td>
+                        <td>0x${chunk.offset.toString(16).toUpperCase().padStart(6, '0')}</td>
+                        <td class="chunk-desc">${desc ? escapeHTML(desc) : '—'}${truncatedNote}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== 卡片折叠 ====================
+        function toggleCard(cardId) {
+            const body = document.getElementById(`body-${cardId}`);
+            const toggleIcon = document.getElementById(`toggle-${cardId}`);
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                toggleIcon.classList.remove('collapsed');
+            } else {
+                body.classList.add('collapsed');
+                toggleIcon.classList.add('collapsed');
+            }
+        }
+
+        // ==================== 复制功能（含事件委托） ====================
+        document.addEventListener('click', function(e) {
+            const copyBtn = e.target.closest('.copy-text-btn');
+            if (!copyBtn) return;
+
+            let textToCopy = '';
+            const copyIndex = copyBtn.getAttribute('data-copy-index');
+            const metaIndex = copyBtn.getAttribute('data-copy-meta-index');
+
+            if (copyIndex !== null && parsedResult && parsedResult.textChunks[copyIndex]) {
+                textToCopy = parsedResult.textChunks[copyIndex].text;
+            } else if (metaIndex !== null && parsedResult && parsedResult.otherMeta[metaIndex]) {
+                textToCopy = parsedResult.otherMeta[metaIndex].value || '';
+            } else {
+                return;
+            }
+
+            // 执行复制
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                updateCopyButton(copyBtn, '✅ 已复制');
+            }).catch(() => {
+                // 回退方案
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                updateCopyButton(copyBtn, '✅ 已复制');
+            });
+        });
+
+        function updateCopyButton(btn, message) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = message;
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        // ==================== 导出和复制全部 ====================
+
+        function exportText() {
+            if (!parsedResult || !parsedResult.hasTextMeta) {
+                showToast('没有可导出的文本元数据');
+                return;
+            }
+            const content = formatTextForExport(parsedResult);
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const baseName = parsedResult.fileInfo.name.replace(/\.png$/i, '');
+            a.download = `${baseName}_metadata.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('✅ 文本已导出');
+        }
+
+        function copyAllText() {
+            if (!parsedResult || !parsedResult.hasTextMeta) {
+                showToast('没有可复制的文本元数据');
+                return;
+            }
+            const content = formatTextForExport(parsedResult);
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('✅ 已复制到剪贴板');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = content;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('✅ 已复制到剪贴板');
+            });
+        }
+
+        function formatTextForExport(result) {
+            let output = '';
+            output += '='.repeat(60) + '\n';
+            output += 'PNG 元数据提取报告\n';
+            output += '='.repeat(60) + '\n\n';
+
+            output += `📄 文件信息\n`;
+            output += `  文件名: ${result.fileInfo.name}\n`;
+            output += `  文件大小: ${result.fileInfo.sizeFormatted}\n\n`;
+
+            output += `🖼️ 图像属性\n`;
+            output += `  尺寸: ${result.ihdr.width} × ${result.ihdr.height} 像素\n`;
+            output += `  位深度: ${result.ihdr.bitDepth} 位\n`;
+            output += `  颜色类型: ${result.ihdr.colorTypeName}\n\n`;
+
+            output += `📝 文本元数据 (${result.textChunks.length}条)\n`;
+            output += '-'.repeat(40) + '\n';
+
+            result.textChunks.forEach((entry, i) => {
+                output += `\n[${i + 1}] 类型: ${entry.type}\n`;
+                output += `  关键字: ${entry.keyword}`;
+                const cn = getKeywordCN(entry.keyword);
+                if (cn) output += ` (${cn})`;
+                output += `\n`;
+                if (entry.language) output += `  语言: ${entry.language}\n`;
+                if (entry.translatedKeyword && entry.translatedKeyword !== '(未指定)')
+                    output += `  翻译关键字: ${entry.translatedKeyword}\n`;
+                output += `  编码: ${entry.encoding}\n`;
+                output += `  内容:\n${entry.text}\n`;
+                output += '-'.repeat(40) + '\n';
+            });
+
+            if (result.otherMeta.length > 0) {
+                output += `\n🔍 其他元数据\n`;
+                output += '-'.repeat(40) + '\n';
+                result.otherMeta.forEach(meta => {
+                    output += `  类型: ${meta.type}\n`;
+                    output += `  名称: ${meta.label || meta.type}\n`;
+                    output += `  值: ${meta.value}\n\n`;
+                });
+            }
+
+            output += '\n' + '='.repeat(60) + '\n';
+            output += `生成时间: ${new Date().toLocaleString('zh-CN')}\n`;
+            output += '由 PNG 元数据提取器生成\n';
+            output += '='.repeat(60) + '\n';
+
+            return output;
+        }
+
+        // ==================== Toast通知 ====================
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        // ==================== 错误处理 ====================
+        function showError(message) {
+            errorText.textContent = message;
+            errorBanner.classList.add('show');
+            setTimeout(() => {
+                errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function hideError() {
+            errorBanner.classList.remove('show');
+            errorText.textContent = '';
+        }
+
+        // ==================== 重置 ====================
+        function resetTool() {
+            parsedResult = null;
+            fileInput.value = '';
+            fileNameEl.textContent = '';
+            uploadZone.classList.remove('has-file');
+            resultsEl.classList.remove('show');
+            hideError();
+            actionBar.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast('🔄 已重置，请上传新的PNG文件');
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ==================== 键盘快捷键 ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && document.activeElement === uploadZone) {
+                fileInput.click();
+            }
+            if (e.key === 'Escape') {
+                hideError();
+            }
+        });
+
+        // 初始状态：actionBar隐藏
+        actionBar.style.display = 'none';
+
+        console.log('🖼️ PNG 元数据提取器已加载（含复制按钮）');
+        console.log('支持: tEXt, zTXt, iTXt, tIME, pHYs, eXIf, sRGB, gAMA, bKGD');
+        console.log('每个文本块都有独立复制按钮，点击即可复制内容。');
+    </script>
+</body>
+</html>

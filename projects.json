@@ -1,0 +1,32 @@
+[
+  {
+    "name": "demo-a",
+    "title": "Demo A · 计算器",
+    "desc": "一个纯静态的小工具示例，用来验证子路径部署是否正常。",
+    "tags": ["工具", "原生 JS"]
+  },
+  {
+  "name": "entry-comparison",
+  "title": "NAI 提示词对比管理",
+  "desc": "一句话描述",
+  "tags": ["页面"]
+  },
+  {
+  "name": "png",
+  "title": "png 元数据提取",
+  "desc": "一句话描述",
+  "tags": ["页面"]
+  },
+  {
+  "name": "doc2txt",
+  "title": "doc 2 txt",
+  "desc": "一句话描述",
+  "tags": ["页面"]
+  },
+  {
+  "name": "markdown",
+  "title": "MD 笔记本",
+  "desc": "一句话描述",
+  "tags": ["工具"]
+  }
+]

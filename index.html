@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目合集</title>
+<meta name="description" content="一个页面，收录所有小项目">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --card:#14181d;
+    --card-hover:#1a2027;
+    --line:#232a32;
+    --text:#e8edf2;
+    --muted:#8b98a5;
+    --accent:#4c8dff;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f5f7fa;
+      --card:#ffffff;
+      --card-hover:#ffffff;
+      --line:#e3e8ee;
+      --text:#111820;
+      --muted:#66707a;
+      --accent:#2563eb;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:64px 24px 96px}
+  header{margin-bottom:40px}
+  h1{
+    font-size:clamp(28px,5vw,42px);
+    line-height:1.2;
+    margin:0 0 12px;
+    letter-spacing:-.02em;
+  }
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  .toolbar{
+    display:flex;gap:12px;align-items:center;
+    margin:28px 0 32px;flex-wrap:wrap;
+  }
+  #search{
+    flex:1;min-width:220px;
+    background:var(--card);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:11px 14px;
+    border-radius:10px;
+    font-size:14px;outline:none;
+    transition:border-color .18s;
+  }
+  #search:focus{border-color:var(--accent)}
+  #search::placeholder{color:var(--muted)}
+  .count{color:var(--muted);font-size:13px;white-space:nowrap}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:16px;
+  }
+  a.card{
+    display:flex;flex-direction:column;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    text-decoration:none;
+    color:inherit;
+    transition:transform .16s ease,border-color .16s ease,background .16s ease;
+    min-height:132px;
+  }
+  a.card:hover{
+    transform:translateY(-3px);
+    border-color:var(--accent);
+    background:var(--card-hover);
+  }
+  .card h2{
+    font-size:16px;margin:0 0 8px;font-weight:600;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card p{
+    font-size:13px;line-height:1.6;color:var(--muted);
+    margin:0;flex:1;
+  }
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+  .tag{
+    font-size:11px;color:var(--muted);
+    border:1px solid var(--line);
+    padding:2px 8px;border-radius:20px;
+  }
+  .empty{
+    color:var(--muted);font-size:14px;
+    border:1px dashed var(--line);
+    border-radius:12px;padding:40px;text-align:center;
+  }
+  footer{
+    margin-top:64px;padding-top:24px;
+    border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>项目合集</h1>
+    <p class="sub">一个入口，收录全部小项目。</p>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="搜索项目名称或描述…" autocomplete="off">
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>没有匹配的项目</div>
+
+  <footer>
+    <span id="year"></span>
+    <span>GitHub Pages · Cloudflare Pages</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var grid = document.getElementById('grid');
+  var empty = document.getElementById('empty');
+  var countEl = document.getElementById('count');
+  var search = document.getElementById('search');
+  var list = [];
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // 始终使用相对路径：GitHub Pages 的 /repo/ 子路径和 Cloudflare 的根路径都能正确解析
+  function urlOf(p) {
+    if (p.url) return p.url;
+    return './projects/' + p.name.replace(/\/+$/, '') + '/';
+  }
+
+  function render(items) {
+    grid.innerHTML = '';
+    if (!items.length) { empty.hidden = false; countEl.textContent = ''; return; }
+    empty.hidden = true;
+    countEl.textContent = items.length + ' 个项目';
+
+    items.forEach(function (p) {
+      var a = document.createElement('a');
+      a.className = 'card';
+      a.href = urlOf(p);
+
+      var h2 = document.createElement('h2');
+      h2.textContent = p.title || p.name;
+
+      var desc = document.createElement('p');
+      desc.textContent = p.desc || '';
+
+      a.appendChild(h2);
+      a.appendChild(desc);
+
+      if (p.tags && p.tags.length) {
+        var tags = document.createElement('div');
+        tags.className = 'tags';
+        p.tags.forEach(function (t) {
+          var s = document.createElement('span');
+          s.className = 'tag';
+          s.textContent = t;
+          tags.appendChild(s);
+        });
+        a.appendChild(tags);
+      }
+      grid.appendChild(a);
+    });
+  }
+
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    if (!q) return render(list);
+    render(list.filter(function (p) {
+      return ((p.title || '') + ' ' + (p.desc || '') + ' ' + p.name + ' ' + (p.tags || []).join(' '))
+        .toLowerCase().indexOf(q) > -1;
+    }));
+  });
+
+  fetch('./projects.json', { cache: 'no-cache' })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (data) {
+      list = Array.isArray(data) ? data : (data.projects || []);
+      render(list);
+    })
+    .catch(function (e) {
+      console.error('projects.json 加载失败', e);
+      countEl.textContent = '';
+      empty.hidden = false;
+      empty.textContent = '项目列表加载失败：请确认 projects.json 存在，并通过 HTTP 访问（不要直接双击打开 index.html）';
+    });
+})();
+</script>
+</body>
+</html>

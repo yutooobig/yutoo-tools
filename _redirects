@@ -1,0 +1,8 @@
+# Cloudflare Pages 重定向规则（GitHub Pages 会忽略本文件）
+# 访问子目录但不带斜杠时，自动补斜杠，避免相对路径解析错位
+# 格式：来源  目标  状态码
+# 示例（按需取消注释并改成你的项目名）：
+# /projects/demo-a  /projects/demo-a/  301
+
+# 单页应用型项目需要回退到 index.html 时（谨慎开启，会吞掉 404）：
+# /projects/spa-app/*  /projects/spa-app/index.html  200

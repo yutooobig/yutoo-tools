@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo A · 计算器</title>
+<style>
+  :root{color-scheme:dark}
+  body{
+    margin:0;min-height:100vh;display:grid;place-items:center;
+    background:#0b0d10;color:#e8edf2;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  .box{width:min(320px,88vw)}
+  .back{color:#8b98a5;font-size:13px;text-decoration:none}
+  .back:hover{color:#4c8dff}
+  h1{font-size:20px;margin:12px 0 20px;font-weight:600}
+  .screen{
+    background:#14181d;border:1px solid #232a32;border-radius:12px;
+    padding:18px;text-align:right;font-size:28px;min-height:64px;
+    font-variant-numeric:tabular-nums;overflow:auto;
+  }
+  .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  button{
+    background:#14181d;border:1px solid #232a32;color:#e8edf2;
+    padding:14px 0;border-radius:10px;font-size:16px;cursor:pointer;
+    transition:background .15s,border-color .15s;
+  }
+  button:hover{background:#1a2027;border-color:#4c8dff}
+  button.op{color:#4c8dff}
+  button.eq{background:#4c8dff;border-color:#4c8dff;color:#fff}
+  .note{margin-top:18px;color:#8b98a5;font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="box">
+  <a class="back" href="../">← 返回合集</a>
+  <h1>计算器</h1>
+  <div class="screen" id="screen">0</div>
+  <div class="keys" id="keys"></div>
+  <p class="note">示例项目 A。所有资源与跳转都走相对路径，因此放在任意子路径下都能正常工作。</p>
+</div>
+<script>
+  var expr = '';
+  var screen = document.getElementById('screen');
+  var labels = ['C','(',')','/','7','8','9','*','4','5','6','-','1','2','3','+','0','.','←','='];
+
+  labels.forEach(function (l) {
+    var b = document.createElement('button');
+    b.textContent = l;
+    if (['/','*','-','+','(',')'].indexOf(l) > -1) b.className = 'op';
+    if (l === '=') b.className = 'eq';
+    b.onclick = function () {
+      if (l === 'C') expr = '';
+      else if (l === '←') expr = expr.slice(0, -1);
+      else if (l === '=') {
+        try { expr = String(Function('return (' + expr + ')')()); }
+        catch (e) { expr = 'Error'; }
+      } else expr += l;
+      screen.textContent = expr || '0';
+    };
+    document.getElementById('keys').appendChild(b);
+  });
+</script>
+</body>
+</html>

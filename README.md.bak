@@ -1,0 +1,112 @@
+# 项目合集（单仓库聚合）
+
+用一个仓库、一个站点，把所有纯静态小项目挂在同一个域名下的不同子路径：
+
+```
+https://你的域名/            → 导航首页
+https://你的域名/projects/demo-a/  → 项目 A
+https://你的域名/projects/demo-b/  → 项目 B
+```
+
+零构建、零依赖，GitHub Pages 和 Cloudflare Pages 都能直接部署。
+
+## 目录结构
+
+```
+site-hub/
+├── index.html              # 导航首页（读取 projects.json 渲染卡片，带搜索）
+├── projects.json           # 项目清单，加项目只需要改这里
+├── 404.html                # 兜底页
+├── _headers                # Cloudflare 响应头（GitHub Pages 忽略）
+├── _redirects              # Cloudflare 重定向规则（GitHub Pages 忽略）
+├── add-project.py          # 一键把别的仓库拉进来
+├── projects/
+│   ├── demo-a/             # 每个项目一个目录，必须有 index.html
+│   └── demo-b/
+└── .github/workflows/pages.yml
+```
+
+## 加一个新项目
+
+**方式一：手动拷**
+
+1. 把项目所有文件放进 `projects/<项目名>/`，确保有 `index.html`
+2. 在 `projects.json` 里加一条：
+
+```json
+{
+  "name": "项目名",
+  "title": "卡片上显示的标题",
+  "desc": "一句话描述",
+  "tags": ["工具"]
+}
+```
+
+**方式二：从已有 GitHub 仓库拉**
+
+```bash
+python3 add-project.py https://github.com/你的用户名/你的项目 "我的工具"
+```
+
+它会克隆到 `projects/你的项目/`、删掉 `.git`、自动注册到 `projects.json`，最后扫描一遍绝对路径引用。
+
+## 本地预览
+
+```bash
+cd site-hub
+python3 -m http.server 8080
+# 打开 http://localhost:8080
+```
+
+不要直接双击 `index.html`——`fetch('./projects.json')` 在 `file://` 下会被浏览器拦截。
+
+## 部署到 GitHub Pages
+
+1. 新建仓库，把 `site-hub` 里所有内容推到 `main`
+2. 仓库 Settings → Pages → Source 选 **GitHub Actions**
+3. 推一次代码，工作流跑完地址是 `https://用户名.github.io/仓库名/`
+
+> 注意：项目页地址带 `/仓库名/` 前缀。本站点内部全部用相对路径，所以不用改任何东西。只有当仓库名是 `用户名.github.io` 时才会挂在根路径。
+
+## 部署到 Cloudflare Pages
+
+**Dashboard 方式（推荐）**
+
+- 连接 Git 仓库
+- Framework preset：`None`
+- Build command：留空
+- Build output directory：`/`
+
+**命令行方式**
+
+```bash
+npx wrangler pages deploy . --project-name=site-hub
+# 或先本地跑一遍：npx wrangler pages dev .
+```
+
+Cloudflare 的地址是根路径 `https://site-hub.pages.dev`，`/projects/demo-a/` 直接可访问，无需额外配置。
+
+## 三个必须知道的坑
+
+**1. 绝对路径会 404（最常见的白屏原因）**
+
+项目里写成 `<script src="/app.js">`、`<link href="/style.css">`、`fetch('/data.json')` 的，一旦放到子路径下就指到了域名根，直接 404。
+
+统一改成相对路径：`./app.js`、`style.css`、`./data.json`。或者在 `<head>` 里加一行 `<base href="./">`（只对相对路径有用，对 `/` 开头的无效）。
+
+**2. 目录要带尾斜杠**
+
+`/projects/demo-a`（不带 `/`）在某些服务器上会被当成文件处理，页面里的相对路径就会解析成 `/projects/app.js`。用 `_redirects` 补斜杠，或者导航页里链接直接写全 `/projects/demo-a/`。
+
+**3. 别把带 `functions/` 或 `_worker.js` 的项目直接拷进来**
+
+Cloudflare Pages 会把这些当成 Functions/Worker 执行，一旦代码有异常就是 `Error 1101`。纯静态项目不需要它们，拷进来前先删掉。
+
+## 关于 1101
+
+`Error 1101: Worker threw exception` 表示有 JS 逻辑在接管请求并抛了异常，纯静态 HTML 不会产生这个错误。排查顺序：
+
+1. 仓库里是否有 `functions/`、`_worker.js`、`_middleware.js`、`_routes.json` → 删掉
+2. 看实时日志拿堆栈：`npx wrangler pages deployment tail --project-name 项目名`
+3. 新建一个只有 `index.html` 的空白项目测试 → 也报 1101 说明是账号/平台侧问题
+4. 用 `*.pages.dev` 裸域名访问，排除自定义域和缓存干扰

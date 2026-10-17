@@ -1,0 +1,2584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Markdown 笔记 v1.5</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/one-light.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" id="hljs-dark">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css" id="hljs-light" disabled>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
+    </script>
+
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --bg-sidebar: #ffffff;
+            --bg-editor: #ffffff;
+            --bg-preview: #ffffff;
+            --bg-toolbar: #ffffff;
+            --border: #e1e5eb;
+            --text: #2c3e50;
+            --text-secondary: #7f8c9b;
+            --text-light: #95a5a6;
+            --accent: #4a90d9;
+            --accent-hover: #357abd;
+            --accent-light: #e8f0fe;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+            --radius: 8px;
+            --radius-sm: 4px;
+            --code-bg: #282c34;
+            --code-text: #abb2bf;
+            --transition: 0.2s ease;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --toolbar-height: 52px;
+            --status-height: 28px;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1d23;
+            --bg-sidebar: #23272e;
+            --bg-editor: #1e2127;
+            --bg-preview: #1e2127;
+            --bg-toolbar: #23272e;
+            --border: #3a3f4a;
+            --text: #d4d9e0;
+            --text-secondary: #9aa4b0;
+            --text-light: #6b7480;
+            --accent: #5c9ce6;
+            --accent-hover: #4a90d9;
+            --accent-light: #2a3a4a;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background var(--transition), color var(--transition);
+            font-size: 14px;
+            line-height: 1.6;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            background: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+            transition: background var(--transition);
+            min-height: var(--toolbar-height);
+            align-content: center;
+            overflow: visible;
+        }
+        .toolbar .logo {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--accent);
+            margin-right: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .toolbar .logo svg {
+            width: 20px;
+            height: 20px;
+        }
+        .toolbar .sep {
+            width: 1px;
+            height: 22px;
+            background: var(--border);
+            margin: 0 2px;
+            flex-shrink: 0;
+            align-self: center;
+        }
+        .toolbar-btn-group {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-shrink: 0;
+            flex-wrap: nowrap;
+        }
+        .toolbar-btn-group .btn {
+            padding: 5px 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .toolbar-btn-group .btn .btn-icon {
+            font-size: 13px;
+        }
+        .toolbar-btn-group .btn .btn-text {
+            display: inline;
+        }
+        @media (max-width: 600px) {
+            .toolbar-btn-group .btn .btn-text {
+                display: none;
+            }
+            .toolbar-btn-group .btn {
+                padding: 6px 8px;
+                font-size: 13px;
+            }
+            .toolbar .logo span {
+                display: none;
+            }
+            .toolbar .logo {
+                font-size: 18px;
+                margin-right: 2px;
+            }
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            transition: all var(--transition);
+            white-space: nowrap;
+            user-select: none;
+            text-decoration: none;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            flex-shrink: 0;
+        }
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+        .btn:active {
+            transform: scale(0.94);
+        }
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .btn.primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+            color: #fff;
+        }
+        .btn.danger {
+            color: var(--danger);
+        }
+        .btn.danger:hover {
+            border-color: var(--danger);
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--danger);
+        }
+        .btn.success {
+            color: var(--success);
+            border-color: var(--success);
+        }
+        .btn.success:hover {
+            background: rgba(39, 174, 96, 0.1);
+        }
+        .btn.sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .btn .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        .toolbar-right .search-input {
+            width: 120px;
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+        .toolbar-right .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+            width: 150px;
+        }
+        @media (max-width: 500px) {
+            .toolbar-right .search-input {
+                width: 80px;
+                font-size: 11px;
+                padding: 4px 6px;
+            }
+            .toolbar-right .search-input:focus {
+                width: 110px;
+            }
+        }
+
+        .git-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--border);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+        .git-status.ready {
+            background: rgba(39, 174, 96, 0.15);
+            color: var(--success);
+        }
+        .git-status.error {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--danger);
+        }
+        .git-status.loading {
+            background: rgba(243, 156, 18, 0.15);
+            color: var(--warning);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 0;
+            min-height: 0;
+        }
+
+        .sidebar {
+            width: 260px;
+            min-width: 180px;
+            max-width: 360px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease, background var(--transition);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .sidebar.collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            border-right: none;
+        }
+        .sidebar-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .sidebar-header .title {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 4px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+        .file-tree::-webkit-scrollbar {
+            width: 4px;
+        }
+        .file-tree::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+        .file-tree::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+        .editor-tabs {
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-toolbar);
+            flex-shrink: 0;
+            gap: 2px;
+            min-height: 34px;
+            transition: background var(--transition);
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .editor-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        .editor-tab {
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+            font-weight: 500;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .editor-tab:hover {
+            color: var(--text);
+        }
+        .editor-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .editor-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .editor-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            border-right: 1px solid var(--border);
+        }
+        .editor-pane:last-child {
+            border-right: none;
+        }
+        .pane-header {
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg);
+            transition: background var(--transition);
+            min-height: 26px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .CodeMirror {
+            flex: 1;
+            font-size: 14px;
+            font-family: var(--font-mono);
+            line-height: 1.7;
+            height: 100%;
+            background: var(--bg-editor);
+            color: var(--text);
+            transition: background var(--transition);
+        }
+        .CodeMirror,
+        .CodeMirror-lines,
+        .CodeMirror pre {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            user-select: text;
+        }
+
+        .preview-pane {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 18px;
+            background: var(--bg-preview);
+            transition: background var(--transition);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+        .preview-pane::-webkit-scrollbar {
+            width: 4px;
+        }
+        .preview-pane::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+        .preview-pane::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .status-bar {
+            padding: 2px 12px;
+            font-size: 10px;
+            color: var(--text-light);
+            border-top: 1px solid var(--border);
+            background: var(--bg-toolbar);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            transition: background var(--transition);
+            user-select: none;
+            min-height: var(--status-height);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            flex-wrap: nowrap;
+        }
+        .status-bar::-webkit-scrollbar {
+            display: none;
+        }
+        .status-bar .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            display: inline-block;
+            animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+        .status-bar span {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --toolbar-height: 46px;
+                --status-height: 24px;
+            }
+            .toolbar {
+                padding: 4px 6px;
+                gap: 2px;
+                min-height: var(--toolbar-height);
+            }
+            .toolbar .logo {
+                font-size: 13px;
+                margin-right: 2px;
+            }
+            .toolbar .logo svg {
+                width: 16px;
+                height: 16px;
+            }
+            .toolbar .sep {
+                display: none;
+            }
+            .toolbar-right {
+                margin-left: 0;
+                width: auto;
+                flex-shrink: 0;
+            }
+            .btn {
+                padding: 4px 6px;
+                font-size: 11px;
+                border-radius: 4px;
+            }
+            .btn .btn-text {
+                display: none !important;
+            }
+            .btn .btn-icon {
+                font-size: 14px;
+            }
+            .toolbar-btn-group .btn {
+                padding: 5px 6px;
+            }
+            .sidebar {
+                width: 200px;
+                min-width: 140px;
+                max-width: 280px;
+            }
+            .editor-content {
+                flex-direction: column;
+            }
+            .editor-pane {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                flex: none;
+                height: 50%;
+            }
+            .editor-pane:last-child {
+                border-bottom: none;
+                flex: 1;
+            }
+            .preview-pane {
+                padding: 12px 14px;
+            }
+            .CodeMirror {
+                font-size: 13px;
+            }
+            .markdown-body {
+                font-size: 14px;
+            }
+            .status-bar {
+                font-size: 9px;
+                padding: 2px 8px;
+                gap: 8px;
+                min-height: var(--status-height);
+            }
+            .sidebar:not(.collapsed) {
+                width: 200px !important;
+                min-width: 140px !important;
+                max-width: 280px !important;
+            }
+            .toolbar-right .search-input {
+                width: 70px;
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+            .toolbar-right .search-input:focus {
+                width: 100px;
+            }
+            .modal {
+                width: 95vw;
+                padding: 16px;
+                max-height: 90vh;
+                border-radius: 10px;
+            }
+            .find-replace-modal .modal {
+                width: 100vw;
+                max-width: 100vw;
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+                padding: 12px;
+            }
+            .find-replace-modal .fr-input-group {
+                flex-direction: column;
+            }
+            .find-replace-modal .fr-input-group input {
+                width: 100%;
+            }
+            .find-replace-modal .fr-results {
+                max-height: 35vh;
+            }
+            .find-replace-modal .fr-actions .btn {
+                flex: 1;
+                text-align: center;
+                padding: 10px;
+                font-size: 12px;
+            }
+            .tree-node .node-row {
+                padding: 8px 6px;
+                min-height: 36px;
+            }
+            .tree-node .node-row .node-icon {
+                font-size: 15px;
+            }
+            .tree-node .node-row .node-name {
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --toolbar-height: 42px;
+            }
+            .toolbar .logo span {
+                display: none;
+            }
+            .toolbar .logo {
+                font-size: 16px;
+            }
+            .btn {
+                padding: 3px 5px;
+                font-size: 10px;
+            }
+            .btn .btn-icon {
+                font-size: 13px;
+            }
+            .sidebar {
+                width: 160px;
+                min-width: 120px;
+                max-width: 220px;
+            }
+            .sidebar:not(.collapsed) {
+                width: 160px !important;
+                min-width: 120px !important;
+            }
+            .CodeMirror {
+                font-size: 12px;
+            }
+            .preview-pane {
+                padding: 10px 12px;
+            }
+            .markdown-body {
+                font-size: 13px;
+            }
+            .status-bar {
+                font-size: 8px;
+                padding: 1px 6px;
+                gap: 6px;
+            }
+            .toolbar-right .search-input {
+                width: 55px;
+                font-size: 10px;
+                padding: 2px 4px;
+            }
+            .toolbar-right .search-input:focus {
+                width: 80px;
+            }
+        }
+
+        .markdown-body {
+            font-size: 15px;
+            line-height: 1.8;
+            max-width: 800px;
+            margin: 0 auto;
+            color: var(--text);
+        }
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--text);
+        }
+        .markdown-body h1 {
+            font-size: 1.8em;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 6px;
+        }
+        .markdown-body h2 {
+            font-size: 1.4em;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+        }
+        .markdown-body h3 {
+            font-size: 1.2em;
+        }
+        .markdown-body p {
+            margin: 8px 0;
+        }
+        .markdown-body a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--accent);
+        }
+        .markdown-body a:hover {
+            border-bottom-style: solid;
+        }
+        .markdown-body ul,
+        .markdown-body ol {
+            padding-left: 22px;
+            margin: 8px 0;
+        }
+        .markdown-body li {
+            margin: 3px 0;
+        }
+        .markdown-body blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 6px 14px;
+            margin: 10px 0;
+            background: var(--accent-light);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            color: var(--text-secondary);
+        }
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            text-align: left;
+        }
+        .markdown-body th {
+            background: var(--accent-light);
+            font-weight: 600;
+        }
+        .markdown-body hr {
+            border: none;
+            border-top: 2px solid var(--border);
+            margin: 16px 0;
+        }
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+        .markdown-body code {
+            font-family: var(--font-mono);
+            background: var(--code-bg);
+            color: #e06c75;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .markdown-body pre {
+            position: relative;
+            margin: 12px 0;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .markdown-body pre code {
+            display: block;
+            padding: 14px 18px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--code-text);
+            background: var(--code-bg);
+            border-radius: 0;
+            font-family: var(--font-mono);
+        }
+        .copy-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 3px 8px;
+            font-size: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-sans);
+            letter-spacing: 0.2px;
+            z-index: 10;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .copy-btn.copied {
+            background: rgba(39, 174, 96, 0.3);
+            border-color: rgba(39, 174, 96, 0.5);
+            color: #a3e4c1;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+            backdrop-filter: blur(4px);
+            padding: 16px;
+        }
+        .modal {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 24px;
+            width: 520px;
+            max-width: 100%;
+            max-height: 88vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            animation: slideUp 0.25s ease;
+        }
+        .modal h3 {
+            margin-bottom: 14px;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal .form-group {
+            margin-bottom: 12px;
+        }
+        .modal .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 3px;
+            color: var(--text-secondary);
+        }
+        .modal .form-group input,
+        .modal .form-group select,
+        .modal .form-group textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .modal .form-group input:focus,
+        .modal .form-group select:focus,
+        .modal .form-group textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+        }
+        .modal .form-group textarea {
+            min-height: 70px;
+            resize: vertical;
+        }
+        .modal .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: calc(24px + var(--safe-bottom));
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 90vw;
+        }
+        .toast {
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.2px;
+            word-break: break-word;
+        }
+        .toast.success {
+            background: #27ae60;
+            color: #fff;
+        }
+        .toast.error {
+            background: #e74c3c;
+            color: #fff;
+        }
+        .toast.info {
+            background: #4a90d9;
+            color: #fff;
+        }
+        .toast.warning {
+            background: #f39c12;
+            color: #fff;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .drop-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(74, 144, 217, 0.15);
+            border: 3px dashed var(--accent);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        .drop-zone.active {
+            display: flex;
+            pointer-events: all;
+        }
+
+        .tree-node {
+            user-select: none;
+        }
+        .tree-node .node-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 6px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 13px;
+            position: relative;
+        }
+        .tree-node .node-row:hover {
+            background: var(--accent-light);
+        }
+        .tree-node .node-row.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .tree-node .node-row.active .node-icon {
+            color: #fff;
+        }
+        .tree-node .node-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .tree-node .node-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 400;
+        }
+        .tree-node .node-badge {
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 10px;
+            background: var(--border);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+        .tree-node .node-children {
+            margin-left: 14px;
+            border-left: 1px solid var(--border);
+            padding-left: 4px;
+        }
+        .tree-node .node-children.collapsed {
+            display: none;
+        }
+        .tree-node .toggle-arrow {
+            font-size: 8px;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+            color: var(--text-light);
+            width: 12px;
+            text-align: center;
+        }
+        .tree-node .toggle-arrow.expanded {
+            transform: rotate(90deg);
+        }
+        .tree-node .toggle-arrow.leaf {
+            visibility: hidden;
+        }
+        .tree-node .node-row.selected {
+            background: var(--accent-light);
+            outline: 1px solid var(--accent);
+        }
+        .tree-node .node-row.selected.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 16px;
+            color: var(--text-light);
+            text-align: center;
+            gap: 6px;
+        }
+        .empty-state .icon {
+            font-size: 36px;
+            margin-bottom: 4px;
+            opacity: 0.6;
+        }
+        .empty-state .text {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .empty-state .sub {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .cm-search-match {
+            background: #ffee00;
+            color: #000;
+            border-radius: 2px;
+        }
+        .cm-search-match-selected {
+            background: #ff9632;
+            color: #000;
+            border-radius: 2px;
+        }
+
+        .find-replace-modal .modal {
+            width: 90vw;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            max-height: 80vh;
+        }
+        .find-replace-modal .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            margin: 12px 0;
+        }
+        .find-replace-modal .fr-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .find-replace-modal .fr-input-group input {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .find-replace-modal .fr-results {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            max-height: 260px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        .find-replace-modal .fr-result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            transition: background 0.15s;
+        }
+        .find-replace-modal .fr-result-item:last-child {
+            border-bottom: none;
+        }
+        .find-replace-modal .fr-result-item:hover {
+            background: var(--accent-light);
+        }
+        .find-replace-modal .fr-result-item.active {
+            background: var(--accent-light);
+            outline: 1px solid var(--accent);
+        }
+        .find-replace-modal .fr-result-item .fr-line {
+            color: var(--text-light);
+            min-width: 32px;
+            text-align: right;
+            font-size: 11px;
+        }
+        .find-replace-modal .fr-result-item .fr-context {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .find-replace-modal .fr-result-item .fr-context mark {
+            background: #ffeb3b;
+            color: #000;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .find-replace-modal .fr-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .find-replace-modal .fr-info {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+
+        /* Git 配置模态框增强 - 已移除，但保留样式以防万一 */
+        .git-check-result {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            margin-top: 8px;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+            word-break: break-word;
+        }
+        .git-check-result.pending {
+            background: rgba(243, 156, 18, 0.12);
+            color: var(--warning);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+        }
+        .git-check-result.success {
+            background: rgba(39, 174, 96, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+        .git-check-result.error {
+            background: rgba(231, 76, 60, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+        .git-check-result .icon {
+            margin-right: 4px;
+        }
+        .btn-test-connection {
+            width: 100%;
+            justify-content: center;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            border-style: dashed;
+            letter-spacing: 0.3px;
+        }
+        .btn-test-connection:hover {
+            border-style: solid;
+        }
+        .btn-test-connection .spinner {
+            border-color: rgba(74, 144, 217, 0.3);
+            border-top-color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="drop-zone" id="dropZone">
+        <span>📂 松开以导入 Markdown 文件</span>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span>笔记</span>
+        </div>
+        <div class="sep"></div>
+
+        <div class="toolbar-btn-group">
+            <button class="btn sm" id="btnNewFile" title="新建文件"><i class="fas fa-file btn-icon"></i><span class="btn-text">新建</span></button>
+            <button class="btn sm" id="btnNewGroup" title="新建分组"><i class="fas fa-folder btn-icon"></i><span class="btn-text">分组</span></button>
+            <button class="btn sm" id="btnUpload" title="上传文件"><i class="fas fa-upload btn-icon"></i><span class="btn-text">上传</span></button>
+            <button class="btn sm" id="btnSave" title="保存 (Ctrl+S)"><i class="fas fa-save btn-icon"></i><span class="btn-text">保存</span></button>
+        </div>
+        <div class="sep"></div>
+
+        <div class="toolbar-btn-group">
+            <button class="btn sm" id="btnUndo" title="撤销"><i class="fas fa-undo btn-icon"></i><span class="btn-text">撤销</span></button>
+            <button class="btn sm" id="btnRedo" title="重做"><i class="fas fa-redo btn-icon"></i><span class="btn-text">重做</span></button>
+            <button class="btn sm" id="btnFindReplace" title="查找替换"><i class="fas fa-search btn-icon"></i><span class="btn-text">查找</span></button>
+        </div>
+        <div class="sep"></div>
+
+        <div class="toolbar-btn-group">
+            <button class="btn sm" id="btnRename" title="重命名"><i class="fas fa-pen btn-icon"></i><span class="btn-text">重命名</span></button>
+            <button class="btn sm danger" id="btnDelete" title="删除"><i class="fas fa-trash btn-icon"></i><span class="btn-text">删除</span></button>
+            <button class="btn sm" id="btnExportSelected" title="导出选中"><i class="fas fa-file-export btn-icon"></i><span class="btn-text">导出</span></button>
+            <button class="btn sm" id="btnExportAll" title="全部导出"><i class="fas fa-archive btn-icon"></i><span class="btn-text">全部</span></button>
+        </div>
+        <!-- Git 按钮已移除 -->
+        <div class="sep"></div>
+
+        <div class="toolbar-right">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 搜索...">
+            <button class="btn sm" id="btnToggleSidebar" title="侧栏"><i class="fas fa-bars btn-icon"></i></button>
+            <button class="btn sm" id="btnTheme" title="主题"><i class="fas fa-moon btn-icon" id="themeIcon"></i></button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="title">📚 文件库</span>
+                <button class="btn sm" id="btnCollapseAll" title="折叠全部">⊟</button>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <div class="empty-state">
+                    <div class="icon">📂</div>
+                    <div class="text">暂无文件</div>
+                    <div class="sub">点击上方「新建」开始</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="editor-container" id="editorContainer">
+            <div class="editor-tabs">
+                <div class="editor-tab active" data-mode="edit"><i class="fas fa-edit"></i> 编辑</div>
+                <div class="editor-tab" data-mode="preview"><i class="fas fa-eye"></i> 预览</div>
+                <div class="editor-tab" data-mode="split"><i class="fas fa-columns"></i> 分屏</div>
+            </div>
+            <div class="editor-content" id="editorContent">
+                <div class="editor-pane" id="editorPane">
+                    <div class="pane-header"><i class="fas fa-pencil-alt"></i> 编辑器</div>
+                    <textarea id="codeEditor"></textarea>
+                </div>
+                <div class="editor-pane" id="previewPane" style="display:none;">
+                    <div class="pane-header"><i class="fas fa-book"></i> 预览</div>
+                    <div class="preview-pane markdown-body" id="previewContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span><span class="dot"></span> 就绪</span>
+        <span id="statusFile">未选择文件</span>
+        <span id="statusChars">0 字符</span>
+        <!-- Git 状态已移除 -->
+        <span id="statusSearch"></span>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <input type="file" id="fileUploadInput" accept=".md,.markdown,.txt" multiple style="display:none;">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/go.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js">
+    </script>
+
+    <script>
+(function() {
+    'use strict';
+
+    // ==================== 全局状态 ====================
+    const state = {
+        files: {},
+        groups: new Set(['默认']),
+        currentFile: null,
+        currentGroup: '默认',
+        editor: null,
+        md: null,
+        hljs: null,
+        theme: localStorage.getItem('md-theme') || 'light',
+        searchQuery: '',
+        collapsedGroups: new Set(),
+        isDirty: false,
+        lastSavedContent: '',
+        selectedPaths: new Set(),
+        sidebarCollapsed: localStorage.getItem('md-sidebar-collapsed') === 'true',
+        searchMarkers: [],
+        frMatches: [],
+        frCurrentIndex: -1,
+        frSearchTerm: '',
+        frReplaceTerm: '',
+        frModalOverlay: null,
+    };
+
+    // ==================== Toast ====================
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+        toast.innerHTML = `${icons[type] || 'ℹ️'} ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100px)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ==================== markdown-it ====================
+    function initMarkdown() {
+        state.md = new markdownit({
+            html: true,
+            linkify: true,
+            typographer: true,
+            highlight: function(str, lang) {
+                if (lang && state.hljs && state.hljs.getLanguage(lang)) {
+                    try {
+                        return `<pre class="hljs"><code>${state.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
+                    } catch (e) {}
+                }
+                return `<pre class="hljs"><code>${state.md.utils.escapeHtml(str)}</code></pre>`;
+            }
+        });
+        const defaultFence = state.md.renderer.rules.fence;
+        state.md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+            const token = tokens[idx];
+            const content = token.content;
+            const lang = token.info ? token.info.trim().split(/\s+/g)[0] : '';
+            const highlighted = state.hljs && lang && state.hljs.getLanguage(lang) ?
+                state.hljs.highlight(content, { language: lang, ignoreIllegals: true }).value :
+                state.md.utils.escapeHtml(content);
+            const langLabel = lang || 'text';
+            return `<div class="code-block-wrapper" style="position:relative;">` +
+                `<button class="copy-btn" data-code="${state.md.utils.escapeHtml(content)}" title="复制代码">📋 复制</button>` +
+                `<pre class="hljs"><code class="language-${langLabel}">${highlighted}</code></pre></div>`;
+        };
+        return state.md;
+    }
+
+    // ==================== CodeMirror ====================
+    function initEditor() {
+        const textarea = document.getElementById('codeEditor');
+        state.editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            theme: state.theme === 'dark' ? 'material-darker' : 'one-light',
+            lineNumbers: true,
+            lineWrapping: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            styleActiveLine: true,
+            tabSize: 2,
+            indentUnit: 2,
+            inputStyle: 'textarea',
+            spellcheck: false,
+            extraKeys: {
+                'Ctrl-S': function() { saveCurrentFile(); },
+                'Cmd-S': function() { saveCurrentFile(); },
+                'Ctrl-B': function() { toggleBold(); },
+                'Cmd-B': function() { toggleBold(); },
+                'Ctrl-I': function() { toggleItalic(); },
+                'Cmd-I': function() { toggleItalic(); },
+                'Ctrl-Z': function() { state.editor.undo(); },
+                'Cmd-Z': function() { state.editor.undo(); },
+                'Ctrl-Y': function() { state.editor.redo(); },
+                'Cmd-Y': function() { state.editor.redo(); },
+                'Ctrl-F': function() { openFindReplace(); },
+                'Cmd-F': function() { openFindReplace(); },
+                'Ctrl-H': function() { openFindReplace(); },
+                'Cmd-H': function() { openFindReplace(); },
+            }
+        });
+        state.editor.on('change', function() {
+            state.isDirty = true;
+            updateStatusBar();
+            debouncedPreview();
+        });
+        return state.editor;
+    }
+
+    let previewTimeout = null;
+
+    function debouncedPreview() {
+        clearTimeout(previewTimeout);
+        previewTimeout = setTimeout(() => updatePreview(), 300);
+    }
+
+    function updatePreview() {
+        const content = state.editor ? state.editor.getValue() : '';
+        const previewEl = document.getElementById('previewContent');
+        if (state.md && previewEl) {
+            previewEl.innerHTML = state.md.render(content);
+            previewEl.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const code = this.getAttribute('data-code');
+                    copyToClipboard(decodeHtmlEntities(code));
+                    this.textContent = '✅ 已复制';
+                    this.classList.add('copied');
+                    setTimeout(() => {
+                        this.textContent = '📋 复制';
+                        this.classList.remove('copied');
+                    }, 1500);
+                });
+            });
+        }
+    }
+
+    function decodeHtmlEntities(text) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    }
+
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('已复制到剪贴板', 'success');
+        } catch (e) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
+            showToast('已复制到剪贴板', 'success');
+        }
+    }
+
+    // ==================== 文件树 ====================
+    function renderFileTree() {
+        const treeEl = document.getElementById('fileTree');
+        treeEl.innerHTML = '';
+
+        if (Object.keys(state.files).length === 0 && state.groups.size === 1 && state.groups.has('默认')) {
+            treeEl.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📂</div>
+                    <div class="text">暂无文件</div>
+                    <div class="sub">点击上方「新建」开始</div>
+                </div>`;
+            return;
+        }
+
+        const groups = Array.from(state.groups).sort();
+
+        groups.forEach(group => {
+            const groupFiles = Object.entries(state.files)
+                .filter(([path, f]) => f.group === group)
+                .sort((a, b) => a[1].name.localeCompare(b[1].name));
+
+            const groupNode = document.createElement('div');
+            groupNode.className = 'tree-node';
+            groupNode.dataset.group = group;
+
+            const isCollapsed = state.collapsedGroups.has(group);
+            const nodeRow = document.createElement('div');
+            nodeRow.className = 'node-row' + (state.currentGroup === group && !state.currentFile ? ' active' :
+                '');
+            nodeRow.innerHTML = `
+                <span class="toggle-arrow ${isCollapsed ? '' : 'expanded'}">▶</span>
+                <span class="node-icon">📁</span>
+                <span class="node-name">${escapeHtml(group)}</span>
+                <span class="node-badge">${groupFiles.length}</span>
+            `;
+            nodeRow.addEventListener('click', () => {
+                if (state.collapsedGroups.has(group)) {
+                    state.collapsedGroups.delete(group);
+                } else {
+                    state.collapsedGroups.add(group);
+                }
+                state.currentGroup = group;
+                state.currentFile = null;
+                renderFileTree();
+                setEditorContent('');
+                updateStatusBar();
+            });
+            nodeRow.addEventListener('dblclick', () => showNewFileModal(group));
+            groupNode.appendChild(nodeRow);
+
+            if (!isCollapsed && groupFiles.length > 0) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'node-children';
+                groupFiles.forEach(([path, file]) => {
+                    const fileNode = document.createElement('div');
+                    fileNode.className = 'tree-node';
+                    const fileRow = document.createElement('div');
+                    const isSelected = state.selectedPaths.has(path);
+                    const isActive = state.currentFile === path;
+                    fileRow.className = 'node-row' + (isActive ? ' active' : '') + (isSelected ?
+                        ' selected' : '');
+
+                    let matchCount = 0;
+                    if (state.searchQuery) {
+                        const query = state.searchQuery.toLowerCase();
+                        const content = file.content.toLowerCase();
+                        let idx = content.indexOf(query);
+                        while (idx !== -1) {
+                            matchCount++;
+                            idx = content.indexOf(query, idx + query.length);
+                        }
+                    }
+                    const badgeHtml = matchCount > 0 ?
+                        `<span class="node-badge" style="background:var(--accent-light);color:var(--accent)">${matchCount}</span>` :
+                        '';
+
+                    fileRow.innerHTML = `
+                        <span class="toggle-arrow leaf">▶</span>
+                        <span class="node-icon">📄</span>
+                        <span class="node-name">${escapeHtml(file.name)}</span>
+                        ${badgeHtml}
+                    `;
+                    fileRow.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (e.ctrlKey || e.metaKey) {
+                            if (state.selectedPaths.has(path)) {
+                                state.selectedPaths.delete(path);
+                            } else {
+                                state.selectedPaths.add(path);
+                            }
+                            renderFileTree();
+                        } else {
+                            state.selectedPaths.clear();
+                            state.selectedPaths.add(path);
+                            openFile(path);
+                        }
+                    });
+                    fileRow.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        openFile(path);
+                        showRenameModal(path);
+                    });
+                    fileNode.appendChild(fileRow);
+                    childrenDiv.appendChild(fileNode);
+                });
+                groupNode.appendChild(childrenDiv);
+            }
+
+            treeEl.appendChild(groupNode);
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== 文件操作 ====================
+    function openFile(path) {
+        const file = state.files[path];
+        if (!file) return;
+        state.currentFile = path;
+        state.currentGroup = file.group;
+        state.lastSavedContent = file.content;
+        setEditorContent(file.content);
+        state.isDirty = false;
+        if (!state.selectedPaths.has(path)) {
+            state.selectedPaths.clear();
+            state.selectedPaths.add(path);
+        }
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已打开: ${file.name}`, 'info');
+        if (state.searchQuery) {
+            highlightSearchInEditor(state.searchQuery);
+        }
+    }
+
+    function setEditorContent(content) {
+        if (state.editor) {
+            state.editor.setValue(content || '');
+            state.editor.clearHistory();
+        }
+        updatePreview();
+        clearSearchHighlights();
+    }
+
+    function saveCurrentFile() {
+        if (!state.currentFile) {
+            showToast('请先选择或创建一个文件', 'error');
+            return;
+        }
+        const file = state.files[state.currentFile];
+        const content = state.editor.getValue();
+        file.content = content;
+        file.updatedAt = new Date().toISOString();
+        state.lastSavedContent = content;
+        state.isDirty = false;
+        updateStatusBar();
+        showToast(`已保存: ${file.name}`, 'success');
+        // Git 同步已移除
+    }
+
+    function createFile(group, name) {
+        const cleanName = name.endsWith('.md') ? name : name + '.md';
+        const path = `${group}/${cleanName}`;
+        if (state.files[path]) {
+            showToast('同名文件已存在', 'error');
+            return false;
+        }
+        if (!state.groups.has(group)) {
+            state.groups.add(group);
+        }
+        state.files[path] = {
+            name: cleanName,
+            group: group,
+            content: '# ' + cleanName.replace('.md', '') + '\n\n开始编写内容...\n',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        state.currentFile = path;
+        state.currentGroup = group;
+        state.lastSavedContent = state.files[path].content;
+        setEditorContent(state.files[path].content);
+        state.isDirty = false;
+        state.selectedPaths.clear();
+        state.selectedPaths.add(path);
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已创建: ${cleanName}`, 'success');
+        // Git 同步已移除
+        return true;
+    }
+
+    function deleteFile(path) {
+        if (!path || !state.files[path]) return;
+        const file = state.files[path];
+        if (!confirm(`确定删除文件「${file.name}」吗？此操作不可撤销。`)) return;
+        delete state.files[path];
+        if (state.currentFile === path) {
+            state.currentFile = null;
+            setEditorContent('');
+        }
+        state.selectedPaths.delete(path);
+        // Git 删除已移除
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已删除: ${file.name}`, 'info');
+    }
+
+    function renameFile(path, newName) {
+        const file = state.files[path];
+        if (!file) return;
+        const cleanName = newName.endsWith('.md') ? newName : newName + '.md';
+        const newPath = `${file.group}/${cleanName}`;
+        if (newPath === path) return;
+        if (state.files[newPath]) {
+            showToast('同名文件已存在', 'error');
+            return;
+        }
+        // Git 删除旧路径已移除
+        file.name = cleanName;
+        file.updatedAt = new Date().toISOString();
+        state.files[newPath] = file;
+        delete state.files[path];
+        if (state.currentFile === path) {
+            state.currentFile = newPath;
+        }
+        if (state.selectedPaths.has(path)) {
+            state.selectedPaths.delete(path);
+            state.selectedPaths.add(newPath);
+        }
+        // Git 同步新路径已移除
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已重命名为: ${cleanName}`, 'success');
+    }
+
+    function moveFileToGroup(path, newGroup) {
+        const file = state.files[path];
+        if (!file || file.group === newGroup) return;
+        if (!state.groups.has(newGroup)) {
+            state.groups.add(newGroup);
+        }
+        const newPath = `${newGroup}/${file.name}`;
+        if (state.files[newPath]) {
+            showToast('目标分组有同名文件', 'error');
+            return;
+        }
+        // Git 删除旧路径已移除
+        file.group = newGroup;
+        file.updatedAt = new Date().toISOString();
+        state.files[newPath] = file;
+        delete state.files[path];
+        if (state.currentFile === path) {
+            state.currentFile = newPath;
+            state.currentGroup = newGroup;
+        }
+        if (state.selectedPaths.has(path)) {
+            state.selectedPaths.delete(path);
+            state.selectedPaths.add(newPath);
+        }
+        // Git 同步新路径已移除
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已移动到: ${newGroup}`, 'success');
+    }
+
+    function createGroup(name) {
+        if (!name.trim()) return;
+        if (state.groups.has(name)) {
+            showToast('分组已存在', 'error');
+            return;
+        }
+        state.groups.add(name);
+        state.collapsedGroups.delete(name);
+        renderFileTree();
+        showToast(`已创建分组: ${name}`, 'success');
+    }
+
+    function deleteGroup(name) {
+        if (!state.groups.has(name)) return;
+        const filesInGroup = Object.entries(state.files).filter(([p, f]) => f.group === name);
+        if (filesInGroup.length > 0) {
+            if (!confirm(`分组「${name}」中有 ${filesInGroup.length} 个文件，确定删除并移动文件到「默认」？`))
+                return;
+            filesInGroup.forEach(([path, file]) => {
+                const newPath = `默认/${file.name}`;
+                let finalPath = newPath;
+                let counter = 1;
+                while (state.files[finalPath]) {
+                    const ext = file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
+                    const baseName = file.name.replace(ext, '');
+                    finalPath = `默认/${baseName}_${counter}${ext}`;
+                    counter++;
+                }
+                file.group = '默认';
+                file.name = finalPath.split('/').pop();
+                file.updatedAt = new Date().toISOString();
+                state.files[finalPath] = file;
+                delete state.files[path];
+                if (state.currentFile === path) {
+                    state.currentFile = finalPath;
+                    state.currentGroup = '默认';
+                }
+                if (state.selectedPaths.has(path)) {
+                    state.selectedPaths.delete(path);
+                    state.selectedPaths.add(finalPath);
+                }
+                // Git 同步已移除
+            });
+        }
+        state.groups.delete(name);
+        state.collapsedGroups.delete(name);
+        if (state.currentGroup === name) {
+            state.currentGroup = '默认';
+            state.currentFile = null;
+            setEditorContent('');
+        }
+        renderFileTree();
+        updateStatusBar();
+        showToast(`已删除分组: ${name}`, 'info');
+    }
+
+    // ==================== 模态框 ====================
+    function showModal(html, onOk) {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal">
+                ${html}
+                <div class="modal-actions">
+                    <button class="btn" id="modalCancel">取消</button>
+                    <button class="btn primary" id="modalOk">确定</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#modalCancel').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#modalOk').addEventListener('click', () => {
+            const result = onOk(overlay);
+            if (result !== false) overlay.remove();
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        return overlay;
+    }
+
+    function showNewFileModal(prefillGroup) {
+        const group = prefillGroup || state.currentGroup || '默认';
+        const groups = Array.from(state.groups);
+        showModal(`
+            <h3>📄 新建 Markdown 文件</h3>
+            <div class="form-group">
+                <label>文件名</label>
+                <input type="text" id="modalFileName" placeholder="例如: 我的笔记.md" value="">
+            </div>
+            <div class="form-group">
+                <label>分组</label>
+                <select id="modalFileGroup">
+                    ${groups.map(g => `<option value="${escapeHtml(g)}" ${g === group ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+                    <option value="__new__">➕ 新建分组...</option>
+                </select>
+            </div>
+        `, (overlay) => {
+            const name = overlay.querySelector('#modalFileName').value.trim();
+            const groupSelect = overlay.querySelector('#modalFileGroup');
+            let groupName = groupSelect.value;
+            if (groupName === '__new__') {
+                groupName = prompt('请输入新分组名称:');
+                if (!groupName || !groupName.trim()) return false;
+                state.groups.add(groupName);
+            }
+            if (!name) {
+                showToast('请输入文件名', 'error');
+                return false;
+            }
+            return createFile(groupName, name) !== false;
+        });
+        setTimeout(() => {
+            const input = overlay.querySelector('#modalFileName');
+            if (input) input.focus();
+        }, 100);
+    }
+
+    function showNewGroupModal() {
+        showModal(`
+            <h3>📁 新建分组</h3>
+            <div class="form-group">
+                <label>分组名称</label>
+                <input type="text" id="modalGroupName" placeholder="例如: 工作笔记">
+            </div>
+        `, (overlay) => {
+            const name = overlay.querySelector('#modalGroupName').value.trim();
+            if (!name) {
+                showToast('请输入分组名称', 'error');
+                return false;
+            }
+            createGroup(name);
+            return true;
+        });
+    }
+
+    function showRenameModal(path) {
+        const file = state.files[path];
+        if (!file) return;
+        showModal(`
+            <h3>✏️ 重命名文件</h3>
+            <div class="form-group">
+                <label>新文件名</label>
+                <input type="text" id="modalRenameInput" value="${escapeHtml(file.name)}">
+            </div>
+            <div class="form-group">
+                <label>移动到分组</label>
+                <select id="modalMoveGroup">
+                    ${Array.from(state.groups).map(g => `<option value="${escapeHtml(g)}" ${g === file.group ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+                </select>
+            </div>
+        `, (overlay) => {
+            const newName = overlay.querySelector('#modalRenameInput').value.trim();
+            const newGroup = overlay.querySelector('#modalMoveGroup').value;
+            if (!newName) {
+                showToast('请输入文件名', 'error');
+                return false;
+            }
+            if (newGroup !== file.group) {
+                moveFileToGroup(path, newGroup);
+            }
+            if (newName !== file.name) {
+                renameFile(path, newName);
+            }
+            return true;
+        });
+    }
+
+    // ==================== Git 配置模态框（已移除） ====================
+    // 所有 Git 相关函数已删除
+
+    // ==================== 导出 ====================
+    function exportSelectedFiles() {
+        const selectedPaths = Array.from(state.selectedPaths);
+        if (selectedPaths.length === 0) {
+            showToast('请先选择文件（点击文件或 Ctrl+点击多选）', 'error');
+            return;
+        }
+        if (selectedPaths.length === 1) {
+            const path = selectedPaths[0];
+            const file = state.files[path];
+            if (!file) return;
+            const blob = new Blob([file.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast(`已导出: ${file.name}`, 'success');
+        } else {
+            exportFilesAsZip(selectedPaths);
+        }
+    }
+
+    function exportAllFiles() {
+        const allPaths = Object.keys(state.files);
+        if (allPaths.length === 0) {
+            showToast('没有文件可导出', 'error');
+            return;
+        }
+        exportFilesAsZip(allPaths);
+    }
+
+    async function exportFilesAsZip(paths) {
+        if (typeof JSZip === 'undefined') {
+            showToast('JSZip 库未加载，请检查网络', 'error');
+            return;
+        }
+        const zip = new JSZip();
+        for (const path of paths) {
+            const file = state.files[path];
+            if (!file) continue;
+            const folder = zip.folder(file.group);
+            if (folder) {
+                folder.file(file.name, file.content);
+            }
+        }
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `markdown-export-${new Date().toISOString().slice(0,10)}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`已打包导出 ${paths.length} 个文件`, 'success');
+    }
+
+    // ==================== 侧边栏 ====================
+    function toggleSidebar() {
+        state.sidebarCollapsed = !state.sidebarCollapsed;
+        localStorage.setItem('md-sidebar-collapsed', state.sidebarCollapsed);
+        applySidebarState();
+    }
+
+    function applySidebarState() {
+        const sidebar = document.getElementById('sidebar');
+        if (state.sidebarCollapsed) {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+        }
+        if (state.editor) {
+            setTimeout(() => state.editor.refresh(), 300);
+        }
+    }
+
+    // ==================== 状态栏 ====================
+    function updateStatusBar() {
+        const fileEl = document.getElementById('statusFile');
+        const charsEl = document.getElementById('statusChars');
+        const searchEl = document.getElementById('statusSearch');
+        if (state.currentFile && state.files[state.currentFile]) {
+            const file = state.files[state.currentFile];
+            fileEl.textContent = `📄 ${file.group}/${file.name}` + (state.isDirty ? ' ●' : '');
+        } else {
+            fileEl.textContent = '未选择文件';
+        }
+        const content = state.editor ? state.editor.getValue() : '';
+        charsEl.textContent = `${content.length} 字符`;
+        if (state.searchQuery) {
+            searchEl.textContent = `🔍 搜索: "${state.searchQuery}"`;
+        } else {
+            searchEl.textContent = '';
+        }
+    }
+
+    // ==================== 编辑器快捷键 ====================
+    function toggleBold() {
+        const editor = state.editor;
+        if (!editor) return;
+        const sel = editor.getSelection();
+        if (sel) {
+            editor.replaceSelection(`**${sel}**`);
+        } else {
+            const cursor = editor.getCursor();
+            editor.replaceRange('****', cursor);
+            editor.setCursor({ line: cursor.line, ch: cursor.ch + 2 });
+        }
+        editor.focus();
+    }
+
+    function toggleItalic() {
+        const editor = state.editor;
+        if (!editor) return;
+        const sel = editor.getSelection();
+        if (sel) {
+            editor.replaceSelection(`*${sel}*`);
+        } else {
+            const cursor = editor.getCursor();
+            editor.replaceRange('**', cursor);
+            editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+        }
+        editor.focus();
+    }
+
+    // ==================== 视图模式 ====================
+    function setViewMode(mode) {
+        state.viewMode = mode;
+        const editorPane = document.getElementById('editorPane');
+        const previewPane = document.getElementById('previewPane');
+        const tabs = document.querySelectorAll('.editor-tab');
+        tabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.mode === mode);
+        });
+        if (mode === 'edit') {
+            editorPane.style.display = 'flex';
+            previewPane.style.display = 'none';
+            editorPane.style.flex = '1';
+        } else if (mode === 'preview') {
+            editorPane.style.display = 'none';
+            previewPane.style.display = 'flex';
+            previewPane.style.flex = '1';
+            updatePreview();
+        } else {
+            editorPane.style.display = 'flex';
+            previewPane.style.display = 'flex';
+            editorPane.style.flex = '1';
+            previewPane.style.flex = '1';
+            updatePreview();
+        }
+        if (state.editor) {
+            state.editor.refresh();
+        }
+    }
+
+    // ==================== 搜索 ====================
+    function handleSearch(query) {
+        state.searchQuery = query.trim().toLowerCase();
+        if (!state.searchQuery) {
+            clearSearchHighlights();
+        }
+        renderFileTree();
+        updateStatusBar();
+        if (state.currentFile && state.searchQuery) {
+            highlightSearchInEditor(state.searchQuery);
+        } else if (state.currentFile && !state.searchQuery) {
+            clearSearchHighlights();
+        }
+    }
+
+    function highlightSearchInEditor(query) {
+        clearSearchHighlights();
+        if (!query || !state.editor) return;
+        const cursor = state.editor.getSearchCursor(query, { line: 0, ch: 0 }, { caseFold: true });
+        let firstMatch = null;
+        while (cursor.findNext()) {
+            const from = cursor.from();
+            const to = cursor.to();
+            const marker = state.editor.markText(from, to, { className: 'cm-search-match' });
+            state.searchMarkers.push(marker);
+            if (!firstMatch) {
+                firstMatch = { from, to };
+            }
+        }
+        if (firstMatch) {
+            state.editor.setSelection(firstMatch.from, firstMatch.to);
+            state.editor.scrollIntoView(firstMatch.from, 50);
+        }
+    }
+
+    function clearSearchHighlights() {
+        state.searchMarkers.forEach(marker => marker.clear());
+        state.searchMarkers = [];
+    }
+
+    // ==================== 查找替换 ====================
+    function openFindReplace() {
+        if (state.frModalOverlay) {
+            state.frModalOverlay.querySelector('#fr-search-input').focus();
+            return;
+        }
+        if (!state.editor) return;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay find-replace-modal';
+        overlay.innerHTML = `
+            <div class="modal">
+                <h3>🔍 查找替换</h3>
+                <div class="fr-input-group">
+                    <input type="text" id="fr-search-input" placeholder="查找内容">
+                    <input type="text" id="fr-replace-input" placeholder="替换为">
+                </div>
+                <div class="fr-info" id="fr-info"></div>
+                <div class="fr-results" id="fr-results"></div>
+                <div class="fr-actions">
+                    <button class="btn" id="fr-prev"><i class="fas fa-arrow-up"></i> 上一个</button>
+                    <button class="btn" id="fr-next"><i class="fas fa-arrow-down"></i> 下一个</button>
+                    <button class="btn primary" id="fr-replace-one"><i class="fas fa-sync"></i> 替换选中</button>
+                    <button class="btn danger" id="fr-replace-all"><i class="fas fa-bolt"></i> 全部替换</button>
+                    <button class="btn" id="fr-close"><i class="fas fa-times"></i> 关闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        state.frModalOverlay = overlay;
+
+        const searchInput = overlay.querySelector('#fr-search-input');
+        const replaceInput = overlay.querySelector('#fr-replace-input');
+
+        overlay.querySelector('#fr-close').addEventListener('click', closeFindReplace);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeFindReplace();
+        });
+
+        searchInput.addEventListener('input', () => {
+            performFindReplaceSearch(searchInput.value, replaceInput.value);
+        });
+
+        overlay.querySelector('#fr-prev').addEventListener('click', () => navigateMatch(-1));
+        overlay.querySelector('#fr-next').addEventListener('click', () => navigateMatch(1));
+        overlay.querySelector('#fr-replace-one').addEventListener('click', () => replaceCurrentMatch());
+        overlay.querySelector('#fr-replace-all').addEventListener('click', () => replaceAllMatches());
+
+        setTimeout(() => searchInput.focus(), 100);
+    }
+
+    function closeFindReplace() {
+        if (state.frModalOverlay) {
+            state.frModalOverlay.remove();
+            state.frModalOverlay = null;
+            state.frMatches = [];
+            state.frCurrentIndex = -1;
+        }
+    }
+
+    function performFindReplaceSearch(searchTerm, replaceTerm) {
+        state.frSearchTerm = searchTerm;
+        state.frReplaceTerm = replaceTerm;
+        state.frMatches = [];
+        state.frCurrentIndex = -1;
+
+        if (!searchTerm) {
+            updateFindReplaceUI();
+            return;
+        }
+
+        const cursor = state.editor.getSearchCursor(searchTerm, { line: 0, ch: 0 }, { caseFold: true });
+        while (cursor.findNext()) {
+            const from = cursor.from();
+            const to = cursor.to();
+            const line = from.line;
+            const lineText = state.editor.getLine(line);
+            const start = Math.max(0, from.ch - 20);
+            const end = Math.min(lineText.length, to.ch + 20);
+            const context = lineText.substring(start, end);
+            state.frMatches.push({
+                from: from,
+                to: to,
+                line: line + 1,
+                context: context,
+                startOffset: from.ch - start,
+                endOffset: to.ch - start
+            });
+        }
+
+        if (state.frMatches.length > 0) {
+            state.frCurrentIndex = 0;
+            clearSearchHighlights();
+            state.frMatches.forEach(match => {
+                const marker = state.editor.markText(match.from, match.to, { className: 'cm-search-match' });
+                state.searchMarkers.push(marker);
+            });
+            selectMatch(0);
+        } else {
+            clearSearchHighlights();
+        }
+
+        updateFindReplaceUI();
+    }
+
+    function updateFindReplaceUI() {
+        if (!state.frModalOverlay) return;
+        const resultsDiv = state.frModalOverlay.querySelector('#fr-results');
+        const infoDiv = state.frModalOverlay.querySelector('#fr-info');
+
+        if (state.frMatches.length === 0) {
+            infoDiv.textContent = state.frSearchTerm ? '未找到匹配项' : '';
+        } else {
+            infoDiv.textContent = `找到 ${state.frMatches.length} 个匹配项，当前第 ${state.frCurrentIndex + 1} 个`;
+        }
+
+        resultsDiv.innerHTML = '';
+        state.frMatches.forEach((match, index) => {
+            const item = document.createElement('div');
+            item.className = 'fr-result-item' + (index === state.frCurrentIndex ? ' active' : '');
+            const before = match.context.substring(0, match.startOffset);
+            const matched = match.context.substring(match.startOffset, match.endOffset);
+            const after = match.context.substring(match.endOffset);
+            const highlightedContext = escapeHtml(before) + `<mark>${escapeHtml(matched)}</mark>` + escapeHtml(
+                after);
+            item.innerHTML = `
+                <span class="fr-line">${match.line}</span>
+                <span class="fr-context">${highlightedContext}</span>
+            `;
+            item.addEventListener('click', () => {
+                selectMatch(index);
+            });
+            resultsDiv.appendChild(item);
+        });
+    }
+
+    function selectMatch(index) {
+        if (index < 0 || index >= state.frMatches.length) return;
+        state.frCurrentIndex = index;
+        const match = state.frMatches[index];
+        state.editor.setSelection(match.from, match.to);
+        state.editor.scrollIntoView(match.from, 50);
+        updateFindReplaceUI();
+    }
+
+    function navigateMatch(direction) {
+        if (state.frMatches.length === 0) return;
+        let newIndex = state.frCurrentIndex + direction;
+        if (newIndex < 0) newIndex = state.frMatches.length - 1;
+        if (newIndex >= state.frMatches.length) newIndex = 0;
+        selectMatch(newIndex);
+    }
+
+    function replaceCurrentMatch() {
+        if (!state.frModalOverlay || state.frMatches.length === 0) return;
+        const match = state.frMatches[state.frCurrentIndex];
+        if (!match) return;
+        const replaceTerm = state.frModalOverlay.querySelector('#fr-replace-input').value;
+        state.editor.replaceRange(replaceTerm, match.from, match.to);
+        performFindReplaceSearch(state.frSearchTerm, replaceTerm);
+        if (state.currentFile) {
+            state.files[state.currentFile].content = state.editor.getValue();
+            state.files[state.currentFile].updatedAt = new Date().toISOString();
+            state.isDirty = true;
+            updateStatusBar();
+        }
+    }
+
+    function replaceAllMatches() {
+        if (!state.frModalOverlay || state.frMatches.length === 0) return;
+        const replaceTerm = state.frModalOverlay.querySelector('#fr-replace-input').value;
+        for (let i = state.frMatches.length - 1; i >= 0; i--) {
+            const match = state.frMatches[i];
+            state.editor.replaceRange(replaceTerm, match.from, match.to);
+        }
+        performFindReplaceSearch(state.frSearchTerm, replaceTerm);
+        if (state.currentFile) {
+            state.files[state.currentFile].content = state.editor.getValue();
+            state.files[state.currentFile].updatedAt = new Date().toISOString();
+            state.isDirty = true;
+            updateStatusBar();
+        }
+        showToast(`已替换 ${state.frMatches.length} 处`, 'success');
+    }
+
+    // ==================== 主题 ====================
+    function toggleTheme() {
+        state.theme = state.theme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('md-theme', state.theme);
+        applyTheme();
+        const icon = document.getElementById('themeIcon');
+        icon.className = state.theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    function applyTheme() {
+        document.documentElement.setAttribute('data-theme', state.theme);
+        if (state.editor) {
+            state.editor.setOption('theme', state.theme === 'dark' ? 'material-darker' : 'one-light');
+        }
+        const hljsDark = document.getElementById('hljs-dark');
+        const hljsLight = document.getElementById('hljs-light');
+        if (state.theme === 'dark') {
+            hljsDark.disabled = false;
+            hljsLight.disabled = true;
+        } else {
+            hljsDark.disabled = true;
+            hljsLight.disabled = false;
+        }
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            icon.className = state.theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+    }
+
+    // ==================== 上传 ====================
+    function handleUpload(files) {
+        const group = state.currentGroup || '默认';
+        let count = 0;
+        const total = files.length;
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                const name = file.name || 'uploaded.md';
+                const cleanName = name.endsWith('.md') || name.endsWith('.markdown') || name.endsWith(
+                    '.txt') ? name : name + '.md';
+                const path = `${group}/${cleanName}`;
+                let finalPath = path;
+                let counter = 1;
+                while (state.files[finalPath]) {
+                    const ext = cleanName.includes('.') ? '.' + cleanName.split('.').pop() : '';
+                    const base = cleanName.replace(/\.[^.]+$/, '');
+                    finalPath = `${group}/${base}_${counter}${ext}`;
+                    counter++;
+                }
+                if (!state.groups.has(group)) state.groups.add(group);
+                state.files[finalPath] = {
+                    name: finalPath.split('/').pop(),
+                    group: group,
+                    content: content,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                };
+                // Git 同步已移除
+                count++;
+                if (count === total) {
+                    renderFileTree();
+                    updateStatusBar();
+                    showToast(`成功上传 ${count} 个文件`, 'success');
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // ==================== 初始化 ====================
+    async function init() {
+        state.hljs = window.hljs;
+        initMarkdown();
+        initEditor();
+        applyTheme();
+        setViewMode('split');
+        applySidebarState();
+
+        const savedFiles = localStorage.getItem('md-files');
+        if (savedFiles) {
+            try {
+                state.files = JSON.parse(savedFiles);
+                Object.values(state.files).forEach(f => {
+                    if (f.group && !state.groups.has(f.group)) {
+                        state.groups.add(f.group);
+                    }
+                });
+            } catch (e) {}
+        }
+        const savedGroups = localStorage.getItem('md-groups');
+        if (savedGroups) {
+            try {
+                const groups = JSON.parse(savedGroups);
+                groups.forEach(g => state.groups.add(g));
+            } catch (e) {}
+        }
+        if (!state.groups.has('默认')) state.groups.add('默认');
+
+        renderFileTree();
+        updateStatusBar();
+
+        // Git 初始化已移除
+
+        setInterval(() => {
+            localStorage.setItem('md-files', JSON.stringify(state.files));
+            localStorage.setItem('md-groups', JSON.stringify(Array.from(state.groups)));
+        }, 5000);
+
+        bindEvents();
+        showToast('欢迎使用 Markdown 笔记 v1.5 (无 Git)', 'info');
+    }
+
+    function bindEvents() {
+        document.getElementById('btnNewFile').addEventListener('click', () => showNewFileModal());
+        document.getElementById('btnNewGroup').addEventListener('click', () => showNewGroupModal());
+        document.getElementById('btnUpload').addEventListener('click', () => document.getElementById(
+            'fileUploadInput').click());
+        document.getElementById('btnSave').addEventListener('click', saveCurrentFile);
+        document.getElementById('btnRename').addEventListener('click', () => {
+            if (state.currentFile) showRenameModal(state.currentFile);
+            else showToast('请先选择文件', 'error');
+        });
+        document.getElementById('btnDelete').addEventListener('click', () => {
+            if (state.currentFile) deleteFile(state.currentFile);
+            else showToast('请先选择文件', 'error');
+        });
+        // Git 按钮事件已移除
+        document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+        document.getElementById('btnCollapseAll').addEventListener('click', () => {
+            state.collapsedGroups = new Set(Array.from(state.groups));
+            renderFileTree();
+        });
+
+        document.getElementById('btnUndo').addEventListener('click', () => {
+            if (state.editor) state.editor.undo();
+        });
+        document.getElementById('btnRedo').addEventListener('click', () => {
+            if (state.editor) state.editor.redo();
+        });
+        document.getElementById('btnExportSelected').addEventListener('click', exportSelectedFiles);
+        document.getElementById('btnExportAll').addEventListener('click', exportAllFiles);
+        document.getElementById('btnToggleSidebar').addEventListener('click', toggleSidebar);
+        document.getElementById('btnFindReplace').addEventListener('click', openFindReplace);
+
+        document.getElementById('fileUploadInput').addEventListener('change', (e) => {
+            handleUpload(e.target.files);
+            e.target.value = '';
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            handleSearch(e.target.value);
+        });
+
+        document.querySelectorAll('.editor-tab').forEach(tab => {
+            tab.addEventListener('click', () => setViewMode(tab.dataset.mode));
+        });
+
+        const dropZone = document.getElementById('dropZone');
+        let dragCounter = 0;
+        document.addEventListener('dragenter', (e) => { e.preventDefault();
+            dragCounter++; if (dragCounter === 1) dropZone.classList.add('active'); });
+        document.addEventListener('dragleave', (e) => { e.preventDefault();
+            dragCounter--; if (dragCounter === 0) dropZone.classList.remove('active'); });
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropZone.classList.remove('active');
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault();
+                saveCurrentFile(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault();
+                showNewFileModal(); }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('md-files', JSON.stringify(state.files));
+            localStorage.setItem('md-groups', JSON.stringify(Array.from(state.groups)));
+            if (state.currentFile && state.editor && state.isDirty) {
+                state.files[state.currentFile].content = state.editor.getValue();
+                state.files[state.currentFile].updatedAt = new Date().toISOString();
+                localStorage.setItem('md-files', JSON.stringify(state.files));
+            }
+        });
+
+        state.editor.on('change', updateStatusBar);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        init();
+    }
+
+})();
+    </script>
+</body>
+</html>

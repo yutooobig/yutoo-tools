@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>页面不存在</title>
+<style>
+  body{
+    margin:0;min-height:100vh;display:grid;place-items:center;
+    background:#0b0d10;color:#e8edf2;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    text-align:center;padding:24px;
+  }
+  h1{font-size:56px;margin:0;letter-spacing:-.03em}
+  p{color:#8b98a5;font-size:14px;margin:12px 0 28px}
+  a{
+    display:inline-block;background:#4c8dff;color:#fff;
+    padding:11px 22px;border-radius:8px;text-decoration:none;font-size:14px;
+  }
+</style>
+</head>
+<body>
+  <div>
+    <h1>404</h1>
+    <p>这个页面不存在，可能项目路径写错了。</p>
+    <a href="/">回到合集首页</a>
+  </div>
+  <script>
+    // GitHub Pages 项目页的 404 会落在 /仓库名/xxx，这里做一次兜底跳转
+    if (location.pathname !== '/' && !location.pathname.startsWith('/index')) {
+      // 保留原路径，仅用于展示，不做自动重定向，避免死循环
+    }
+  </script>
+</body>
+</html>

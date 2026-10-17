@@ -1,0 +1,5 @@
+# Cloudflare Pages 配置：这些头只在 Cloudflare 生效，GitHub Pages 会忽略本文件
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
