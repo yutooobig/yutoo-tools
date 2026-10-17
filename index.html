@@ -83,9 +83,9 @@
     border-color:var(--accent);
     background:var(--card-hover);
   }
+  a.card[hidden]{display:none}
   .card h2{
     font-size:16px;margin:0 0 8px;font-weight:600;
-    display:flex;align-items:center;gap:8px;
   }
   .card p{
     font-size:13px;line-height:1.6;color:var(--muted);
@@ -109,6 +109,11 @@
     display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
   }
 </style>
+<noscript>
+  <style>
+    .toolbar{display:none}
+  </style>
+</noscript>
 </head>
 <body>
 <div class="wrap">
@@ -119,90 +124,45 @@
 
   <div class="toolbar">
     <input id="search" type="search" placeholder="搜索项目名称或描述…" autocomplete="off">
-    <span class="count" id="count"></span>
+    <span class="count">2 个项目</span>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <div class="grid" id="grid">
+      <a class="card" href="./projects/demo-a/" data-key="Demo A · 计算器 一个纯静态的小工具示例，用来验证子路径部署是否正常。 demo-a 工具 原生 JS">
+        <h2>Demo A · 计算器</h2>
+        <p>一个纯静态的小工具示例，用来验证子路径部署是否正常。</p>
+        <div class="tags"><span class="tag">工具</span><span class="tag">原生 JS</span></div>
+      </a>
+      <a class="card" href="./projects/demo-b/" data-key="Demo B · 落地页 页面型项目示例：演示相对路径资源如何正确加载。 demo-b 页面">
+        <h2>Demo B · 落地页</h2>
+        <p>页面型项目示例：演示相对路径资源如何正确加载。</p>
+        <div class="tags"><span class="tag">页面</span></div>
+      </a>
+  </div>
   <div class="empty" id="empty" hidden>没有匹配的项目</div>
 
   <footer>
-    <span id="year"></span>
+    <span>2026</span>
     <span>GitHub Pages · Cloudflare Pages</span>
   </footer>
 </div>
 
 <script>
+// 只是一点渐进增强：过滤已经渲染好的卡片。禁用 JS 时所有卡片照常显示、照常可点。
 (function () {
-  var grid = document.getElementById('grid');
-  var empty = document.getElementById('empty');
-  var countEl = document.getElementById('count');
   var search = document.getElementById('search');
-  var list = [];
-
-  document.getElementById('year').textContent = new Date().getFullYear();
-
-  // 始终使用相对路径：GitHub Pages 的 /repo/ 子路径和 Cloudflare 的根路径都能正确解析
-  function urlOf(p) {
-    if (p.url) return p.url;
-    return './projects/' + p.name.replace(/\/+$/, '') + '/';
-  }
-
-  function render(items) {
-    grid.innerHTML = '';
-    if (!items.length) { empty.hidden = false; countEl.textContent = ''; return; }
-    empty.hidden = true;
-    countEl.textContent = items.length + ' 个项目';
-
-    items.forEach(function (p) {
-      var a = document.createElement('a');
-      a.className = 'card';
-      a.href = urlOf(p);
-
-      var h2 = document.createElement('h2');
-      h2.textContent = p.title || p.name;
-
-      var desc = document.createElement('p');
-      desc.textContent = p.desc || '';
-
-      a.appendChild(h2);
-      a.appendChild(desc);
-
-      if (p.tags && p.tags.length) {
-        var tags = document.createElement('div');
-        tags.className = 'tags';
-        p.tags.forEach(function (t) {
-          var s = document.createElement('span');
-          s.className = 'tag';
-          s.textContent = t;
-          tags.appendChild(s);
-        });
-        a.appendChild(tags);
-      }
-      grid.appendChild(a);
-    });
-  }
-
+  var cards = [].slice.call(document.querySelectorAll('#grid .card'));
+  var empty = document.getElementById('empty');
   search.addEventListener('input', function () {
     var q = search.value.trim().toLowerCase();
-    if (!q) return render(list);
-    render(list.filter(function (p) {
-      return ((p.title || '') + ' ' + (p.desc || '') + ' ' + p.name + ' ' + (p.tags || []).join(' '))
-        .toLowerCase().indexOf(q) > -1;
-    }));
-  });
-
-  fetch('./projects.json', { cache: 'no-cache' })
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (data) {
-      list = Array.isArray(data) ? data : (data.projects || []);
-      render(list);
-    })
-    .catch(function (e) {
-      console.error('projects.json 加载失败', e);
-      countEl.textContent = '';
-      empty.hidden = false;
-      empty.textContent = '项目列表加载失败：请确认 projects.json 存在，并通过 HTTP 访问（不要直接双击打开 index.html）';
+    var shown = 0;
+    cards.forEach(function (c) {
+      var hit = !q || (c.dataset.key || '').toLowerCase().indexOf(q) > -1;
+      c.hidden = !hit;
+      if (hit) shown++;
     });
+    empty.hidden = shown !== 0;
+  });
 })();
 </script>
 </body>

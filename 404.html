@@ -23,13 +23,17 @@
   <div>
     <h1>404</h1>
     <p>这个页面不存在，可能项目路径写错了。</p>
-    <a href="/">回到合集首页</a>
+    <a id="home" href="./">回到合集首页</a>
   </div>
   <script>
-    // GitHub Pages 项目页的 404 会落在 /仓库名/xxx，这里做一次兜底跳转
-    if (location.pathname !== '/' && !location.pathname.startsWith('/index')) {
-      // 保留原路径，仅用于展示，不做自动重定向，避免死循环
-    }
+    // 404 的 URL 保留的是用户请求的原路径，相对链接会跟着漂。
+    // 这里统一算一次站点根：命中 /projects/ 就截断到它前面，
+    // 从而兼容 Cloudflare 的根路径部署和 GitHub Pages 的 /仓库名/ 前缀。
+    (function () {
+      var p = location.pathname;
+      var i = p.indexOf('/projects/');
+      if (i > -1) document.getElementById('home').href = p.slice(0, i + 1);
+    })();
   </script>
 </body>
 </html>
