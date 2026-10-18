@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Markdown 笔记 v1.5</title>
+    <title>Markdown 笔记 v1.6</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
@@ -459,6 +459,9 @@
         .preview-pane {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
+            min-width: 0;
+            max-width: 100%;
             padding: 16px 18px;
             background: var(--bg-preview);
             transition: background var(--transition);
@@ -704,6 +707,23 @@
             max-width: 800px;
             margin: 0 auto;
             color: var(--text);
+            /* 长串内容（URL、英文长词、无空格串）强制换行，避免撑出屏幕 */
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        /* 块级元素一律不许超过容器宽度 */
+        .markdown-body p,
+        .markdown-body li,
+        .markdown-body blockquote,
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
         .markdown-body h1,
         .markdown-body h2,
@@ -780,8 +800,26 @@
         }
         .markdown-body img {
             max-width: 100%;
+            height: auto;
             border-radius: var(--radius);
             box-shadow: var(--shadow-sm);
+        }
+        .markdown-body video,
+        .markdown-body iframe,
+        .markdown-body svg {
+            max-width: 100%;
+        }
+        /* 表格：外层可横向滚动，不再撑破页面 */
+        .markdown-body .table-wrap {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 10px 0;
+        }
+        .markdown-body .table-wrap table {
+            margin: 0;
+            min-width: 100%;
         }
         .markdown-body code {
             font-family: var(--font-mono);
@@ -796,7 +834,12 @@
             margin: 12px 0;
             border-radius: var(--radius);
             overflow: hidden;
+            max-width: 100%;
             box-shadow: var(--shadow-sm);
+        }
+        .markdown-body .code-block-wrapper {
+            max-width: 100%;
+            overflow: hidden;
         }
         .markdown-body pre code {
             display: block;
@@ -1515,11 +1558,23 @@
         previewTimeout = setTimeout(() => updatePreview(), 300);
     }
 
+    // 给预览中的宽表格套一层可横向滚动的容器，避免撑破移动端布局
+    function wrapTables(root) {
+        root.querySelectorAll('table').forEach(function(table) {
+            if (table.parentElement && table.parentElement.classList.contains('table-wrap')) return;
+            const wrap = document.createElement('div');
+            wrap.className = 'table-wrap';
+            table.parentNode.insertBefore(wrap, table);
+            wrap.appendChild(table);
+        });
+    }
+
     function updatePreview() {
         const content = state.editor ? state.editor.getValue() : '';
         const previewEl = document.getElementById('previewContent');
         if (state.md && previewEl) {
             previewEl.innerHTML = state.md.render(content);
+            wrapTables(previewEl);
             previewEl.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -2491,7 +2546,7 @@
         }, 5000);
 
         bindEvents();
-        showToast('欢迎使用 Markdown 笔记 v1.5 (无 Git)', 'info');
+        showToast('欢迎使用 Markdown 笔记 v1.6 (无 Git)', 'info');
     }
 
     function bindEvents() {

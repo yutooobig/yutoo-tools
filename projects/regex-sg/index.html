@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>傻瓜正则生成器 · 标注即生成</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#fff; --line:#e4e7ec; --text:#1f2328; --muted:#6b7280; --pri:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  header{padding:22px 24px 10px}
+  header h1{margin:0;font-size:20px;letter-spacing:.5px}
+  header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+  main{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;padding:12px 24px 48px}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .title{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;margin:4px 0 8px;display:flex;align-items:center;gap:6px}
+  .title .num{display:inline-flex;width:16px;height:16px;border-radius:50%;background:var(--pri);color:#fff;font-size:10px;align-items:center;justify-content:center;font-weight:700}
+  textarea{
+    width:100%;min-height:118px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.7;
+    resize:vertical;outline:none;background:#fcfcfd;color:var(--text);
+  }
+  textarea:focus{border-color:var(--pri);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.10)}
+
+  .tools{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .tool{
+    border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px;
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--text);transition:.15s;
+    font-family:inherit;
+  }
+  .tool::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,#94a3b8)}
+  .tool:hover{border-color:var(--c);background:#f8fafc;transform:translateY(-1px)}
+  .tool:active{transform:translateY(0)}
+  .tool.plain::before{display:none}
+  .custom{display:inline-flex;gap:6px;align-items:center;flex:1 1 200px}
+  .custom input{
+    flex:1;min-width:90px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;
+    font-family:ui-monospace,Menlo,monospace;outline:none;
+  }
+  .custom input:focus{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.1)}
+
+  .preview{
+    min-height:96px;max-height:260px;overflow:auto;padding:12px;border:1px dashed var(--line);border-radius:10px;
+    white-space:pre-wrap;word-break:break-word;line-height:2.1;font-family:ui-monospace,Menlo,monospace;font-size:13px;
+    background:#fcfcfd;
+  }
+  .ph{color:#9aa3af}
+  .mark{
+    position:relative;background:var(--bgc);border-bottom:2px solid var(--c);
+    border-radius:3px 3px 0 0;cursor:pointer;padding:1px 0;transition:filter .15s;
+  }
+  .mark:hover{filter:brightness(.93)}
+  .mark .tag{
+    font-style:normal;font-size:10px;line-height:14px;color:#fff;background:var(--c);
+    border-radius:8px;padding:0 6px;margin:0 2px;vertical-align:2px;user-select:none;
+    display:inline-block;transform:translateY(-1px);font-weight:600;
+  }
+
+  .regexbox{
+    background:#0f172a;color:#e2e8f0;border-radius:10px;padding:12px 14px;
+    font-family:ui-monospace,Menlo,monospace;
+    font-size:13.5px;line-height:1.7;word-break:break-all;min-height:52px;position:relative;
+  }
+  .regexbox .delim{color:#64748b}
+  .regexbox .flag{color:#fbbf24}
+  .regexbox .val{user-select:text}
+  .copybtn{
+    position:absolute;top:8px;right:8px;background:rgba(255,255,255,.12);color:#cbd5e1;border:none;
+    border-radius:6px;padding:3px 9px;font-size:11.5px;cursor:pointer;font-family:inherit;
+  }
+  .copybtn:hover{background:rgba(255,255,255,.24)}
+  .copybtn:active{transform:scale(.96)}
+  .copybtn.done{background:#16a34a;color:#fff}
+
+  .opts{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0 4px;font-size:12.5px;color:#475569}
+  .opts label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  .opts select{padding:3px 6px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;font-family:inherit}
+
+  .btn{
+    border:none;background:var(--pri);color:#fff;border-radius:8px;padding:7px 16px;font-size:13px;
+    cursor:pointer;font-family:inherit;font-weight:500;transition:.15s;
+  }
+  .btn:hover{background:#1d4ed8}
+  .btn.ghost{background:#f1f5f9;color:#334155}
+  .btn.ghost:hover{background:#e2e8f0}
+
+  #testResult{margin-top:10px;font-size:13px}
+  .hl{
+    white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;line-height:1.9;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+    max-height:200px;overflow:auto;
+  }
+  .hl mark{background:#fde68a;border-radius:3px;padding:1px 0;box-shadow:0 0 0 1px #fbbf24 inset}
+  .ok{color:#059669;font-weight:600}
+  .err{color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:8px}
+  .toast{
+    position:fixed;left:50%;bottom:36px;transform:translate(-50%,20px);background:#111827;color:#fff;
+    padding:9px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .hint{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.6}
+  .sync{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:#475569;margin-left:auto}
+
+  /* 复制兜底弹窗 */
+  .modal{
+    position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;
+    align-items:center;justify-content:center;z-index:200;padding:20px;
+  }
+  .modal.show{display:flex}
+  .modal-card{
+    background:#fff;border-radius:14px;padding:18px;width:min(520px,100%);
+    box-shadow:0 20px 40px rgba(2,6,23,.3);
+  }
+  .modal-card h3{margin:0 0 6px;font-size:15px}
+  .modal-card p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+  .modal-card textarea{
+    min-height:88px;background:#f8fafc;font-size:12.5px;
+  }
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>傻瓜正则生成器</h1>
+  <p>输入示例文本 → 框选片段 → 点类型标注 → 自动生成正则。不用懂正则语法。</p>
+</header>
+
+<main>
+  <!-- 左栏 -->
+  <section class="panel">
+    <div class="title"><span class="num">1</span>示例文本</div>
+    <textarea id="source">订单号：A20240315001
+下单时间：2024-03-15 14:30:22
+收货人：张三
+手机号：13800138000
+金额：￥1280.50</textarea>
+
+    <div class="title" style="margin-top:14px"><span class="num">2</span>选中文字后，点下面的类型标注</div>
+    <div class="tools" id="tools">
+      <button class="tool" data-type="any"     style="--c:#3b82f6">任意内容</button>
+      <button class="tool" data-type="digits"  style="--c:#f59e0b">数字</button>
+      <button class="tool" data-type="letters" style="--c:#10b981">字母</button>
+      <button class="tool" data-type="word"    style="--c:#8b5cf6">字母数字</button>
+      <button class="tool" data-type="chinese" style="--c:#ec4899">中文</button>
+      <button class="tool" data-type="space"   style="--c:#64748b">空白</button>
+      <span class="custom">
+        <input id="customPat" placeholder="自定义正则，如 [A-Z]\d+">
+        <button class="tool" data-type="custom" style="--c:#ef4444">应用</button>
+      </span>
+    </div>
+    <div class="tools">
+      <button class="tool plain" id="autoBtn" style="--c:#0ea5e9">✨ 自动标注数字/字母</button>
+      <button class="tool plain" id="clearBtn" style="--c:#94a3b8">清空标注</button>
+    </div>
+
+    <div class="title" style="margin-top:14px"><span class="num">3</span>标注预览（点击彩色标记可删除）</div>
+    <div class="preview" id="preview"></div>
+    <div class="hint">未标注的部分 = 固定文本，会被原样保留（自动转义 . * + ? 等特殊符号）。</div>
+  </section>
+
+  <!-- 右栏 -->
+  <section class="panel">
+    <div class="title"><span class="num">4</span>生成的正则表达式</div>
+    <div class="regexbox" id="regexBox">
+      <button class="copybtn" id="copyBtn" type="button">复制</button>
+      <span id="regexOut" class="val"></span>
+    </div>
+
+    <div class="opts">
+      <label><input type="checkbox" id="optLazy" checked> 变量用懒惰匹配（.*?）</label>
+      <label><input type="checkbox" id="optI"> 忽略大小写 i</label>
+      <label><input type="checkbox" id="optS" checked> 点匹配换行 s</label>
+      <label>锚定：
+        <select id="optAnchor">
+          <option value="none">不锚定（可出现在任意位置）</option>
+          <option value="both">整体匹配 ^...$</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="title" style="margin-top:16px"><span class="num">5</span>测试匹配</div>
+    <textarea id="testText" style="min-height:90px"></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn" id="testBtn">测试匹配</button>
+      <button class="btn ghost" id="resetTestBtn">同步为源文本</button>
+      <label class="sync"><input type="checkbox" id="autoSync" checked> 自动同步测试文本</label>
+    </div>
+    <div id="testResult"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- 复制兜底弹窗 -->
+<div class="modal" id="copyModal">
+  <div class="modal-card">
+    <h3>手动复制</h3>
+    <p>浏览器阻止了自动复制，内容已为你选中，请按 <b>Ctrl/Cmd + C</b> 复制：</p>
+    <textarea id="copyModalText" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn" id="copyModalClose" type="button">知道了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- 类型定义 ---------- */
+  const TYPES = {
+    any:     { name:'任意',     color:'#3b82f6' },
+    digits:  { name:'数字',     color:'#f59e0b' },
+    letters: { name:'字母',     color:'#10b981' },
+    word:    { name:'字母数字', color:'#8b5cf6' },
+    chinese: { name:'中文',     color:'#ec4899' },
+    space:   { name:'空白',     color:'#64748b' },
+    custom:  { name:'自定义',   color:'#ef4444' }
+  };
+
+  /* ---------- DOM ---------- */
+  const $ = s => document.querySelector(s);
+  const textarea  = $('#source');
+  const preview   = $('#preview');
+  const regexOut  = $('#regexOut');
+  const testText  = $('#testText');
+  const testResult= $('#testResult');
+  const toastEl   = $('#toast');
+  const autoSync  = $('#autoSync');
+  const copyBtn   = $('#copyBtn');
+  const copyModal = $('#copyModal');
+  const copyModalText = $('#copyModalText');
+
+  /* ---------- 状态 ---------- */
+  let ranges = [];
+  let savedSel = { start:0, end:0 };
+  let testDirty = false;
+
+  /* ---------- 工具 ---------- */
+  function escHtml(s){
+    return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+  function hexA(hex, a){
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+  function escapeRegex(s){
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
+  }
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>toastEl.classList.remove('show'), 1600);
+  }
+  function syncTestText(){
+    if (autoSync.checked && !testDirty){
+      testText.value = textarea.value;
+    }
+  }
+
+  /* ============ 剪贴板：三层兜底 ============ */
+  function legacyCopy(text){
+    let ok = false;
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    // 放在视口内但不可见，避免 iOS 上选区失败
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;';
+    document.body.appendChild(ta);
+
+    const sel = window.getSelection();
+    let savedRange = null;
+    try{
+      if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+    }catch(e){}
+
+    ta.focus();
+    ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch(e){}
+
+    try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+
+    document.body.removeChild(ta);
+
+    // 还原用户原来的选区
+    if (savedRange && sel){
+      try{
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      }catch(e){}
+    }
+    return ok;
+  }
+
+  function showCopyModal(text){
+    copyModalText.value = text;
+    copyModal.classList.add('show');
+    setTimeout(()=>{
+      copyModalText.focus();
+      copyModalText.select();
+      try{ copyModalText.setSelectionRange(0, text.length); }catch(e){}
+    }, 30);
+  }
+
+  function flashCopyBtn(){
+    copyBtn.classList.add('done');
+    copyBtn.textContent = '已复制';
+    setTimeout(()=>{
+      copyBtn.classList.remove('done');
+      copyBtn.textContent = '复制';
+    }, 1200);
+  }
+
+  function copyToClipboard(text, label){
+    // 1) 现代异步 API（需要安全上下文 HTTPS / localhost）
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+      try{
+        navigator.clipboard.writeText(text).then(
+          ()=>{ toast((label||'') + '已复制到剪贴板'); flashCopyBtn(); },
+          ()=>{ // 被拒绝 → 降级
+            if (legacyCopy(text)){ toast((label||'') + '已复制到剪贴板'); flashCopyBtn(); }
+            else { showCopyModal(text); }
+          }
+        );
+        return;
+      }catch(e){ /* 继续降级 */ }
+    }
+    // 2) 老式 execCommand
+    if (legacyCopy(text)){
+      toast((label||'') + '已复制到剪贴板');
+      flashCopyBtn();
+      return;
+    }
+    // 3) 弹窗手动复制
+    showCopyModal(text);
+    toast('请在弹出的窗口中手动复制');
+  }
+
+  /* ---------- 选区跟踪 ---------- */
+  ['mouseup','keyup','select','input','click'].forEach(ev=>{
+    textarea.addEventListener(ev, ()=>{
+      savedSel = { start: textarea.selectionStart, end: textarea.selectionEnd };
+    });
+  });
+  document.addEventListener('selectionchange', ()=>{
+    if (document.activeElement === textarea){
+      savedSel = { start: textarea.selectionStart, end: textarea.selectionEnd };
+    }
+  });
+
+  /* ---------- 模式片段 ---------- */
+  function patternOf(r, lazy){
+    switch(r.type){
+      case 'any':     return lazy ? '.*?' : '.*';
+      case 'digits':  return '\\d+';
+      case 'letters': return '[A-Za-z]+';
+      case 'word':    return '[A-Za-z0-9_]+';
+      case 'chinese': return '[\\u4e00-\\u9fa5]+';
+      case 'space':   return '\\s+';
+      case 'custom':  return r.custom || '.*?';
+      default:        return '';
+    }
+  }
+
+  /* ---------- 生成正则 ---------- */
+  function buildPattern(){
+    const text = textarea.value;
+    const lazy = $('#optLazy').checked;
+    let pat = '', pos = 0;
+    for (const r of ranges){
+      if (r.start > pos) pat += escapeRegex(text.slice(pos, r.start));
+      pat += patternOf(r, lazy);
+      pos = r.end;
+    }
+    if (pos < text.length) pat += escapeRegex(text.slice(pos));
+    if ($('#optAnchor').value === 'both' && pat) pat = '^' + pat + '$';
+    return pat;
+  }
+  function buildFlags(){
+    let f = '';
+    if ($('#optI').checked) f += 'i';
+    if ($('#optS').checked) f += 's';
+    return f;
+  }
+
+  function updateRegex(){
+    const pat = buildPattern();
+    const flags = buildFlags();
+    regexOut.innerHTML =
+      '<span class="delim">/</span>' + escHtml(pat) +
+      '<span class="delim">/</span><span class="flag">' + flags + '</span>';
+  }
+
+  /* ---------- 渲染 ---------- */
+  function render(){
+    const text = textarea.value;
+
+    ranges = ranges.filter(r => r.start >= 0 && r.end <= text.length && r.start < r.end);
+    ranges.sort((a,b)=> a.start - b.start);
+    const cleaned = [];
+    let lastEnd = -1;
+    for (const r of ranges){
+      if (r.start >= lastEnd){ cleaned.push(r); lastEnd = r.end; }
+    }
+    ranges = cleaned;
+
+    let html = '', pos = 0;
+    for (const r of ranges){
+      html += escHtml(text.slice(pos, r.start));
+      const t = TYPES[r.type] || TYPES.any;
+      html += `<span class="mark" data-s="${r.start}" data-e="${r.end}" title="点击删除该标注"
+                 style="--c:${t.color};--bgc:${hexA(t.color,.15)}">${
+                 escHtml(text.slice(r.start, r.end))}<i class="tag">${t.name}</i></span>`;
+      pos = r.end;
+    }
+    html += escHtml(text.slice(pos));
+
+    preview.innerHTML = html || '<span class="ph">（暂无内容，输入文本后框选一段，再点上方类型按钮）</span>';
+
+    updateRegex();
+    syncTestText();
+  }
+
+  /* ---------- 添加标注 ---------- */
+  function addRange(type, custom){
+    const s = savedSel.start, e = savedSel.end;
+    if (s === e){
+      toast('请先在文本中框选一段内容');
+      return;
+    }
+    ranges = ranges.filter(r => r.end <= s || r.start >= e);
+    ranges.push({ start:s, end:e, type:type, custom:custom });
+    render();
+    toast('已标注：' + (TYPES[type] ? TYPES[type].name : type));
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  const tools = $('#tools');
+  tools.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('mousedown', e => e.preventDefault());
+  });
+  tools.addEventListener('click', e=>{
+    const btn = e.target.closest('button.tool');
+    if (!btn) return;
+    const type = btn.dataset.type;
+    if (type === 'custom'){
+      const val = $('#customPat').value.trim();
+      if (!val){ toast('请先在输入框里填写自定义正则'); $('#customPat').focus(); return; }
+      addRange('custom', val);
+    } else {
+      addRange(type);
+    }
+  });
+  $('#customPat').addEventListener('keydown', e=>{
+    if (e.key === 'Enter'){
+      const val = e.target.value.trim();
+      if (!val){ toast('请输入自定义正则'); return; }
+      addRange('custom', val);
+    }
+  });
+
+  preview.addEventListener('click', e=>{
+    const el = e.target.closest('.mark');
+    if (!el) return;
+    const s = +el.dataset.s, en = +el.dataset.e;
+    ranges = ranges.filter(r => !(r.start === s && r.end === en));
+    render();
+  });
+
+  $('#autoBtn').addEventListener('click', ()=>{
+    const text = textarea.value;
+    if (!text){ toast('请先输入文本'); return; }
+    const re = /\d+|[A-Za-z]+/g;
+    let m;
+    const found = [];
+    while ((m = re.exec(text)) !== null){
+      found.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: /^\d/.test(m[0]) ? 'digits' : 'letters'
+      });
+    }
+    ranges = found;
+    render();
+    toast(found.length ? `自动标注了 ${found.length} 处` : '没找到数字或字母');
+  });
+
+  $('#clearBtn').addEventListener('click', ()=>{
+    ranges = [];
+    render();
+    toast('已清空标注');
+  });
+
+  textarea.addEventListener('input', render);
+
+  ['#optLazy','#optI','#optS','#optAnchor'].forEach(sel=>{
+    $(sel).addEventListener('change', updateRegex);
+  });
+
+  /* ---------- 复制按钮 ---------- */
+  copyBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const pat = buildPattern();
+    if (!pat){
+      toast('正则为空，请先输入示例文本');
+      return;
+    }
+    const txt = '/' + pat + '/' + buildFlags();
+    copyToClipboard(txt, '正则表达式');
+  });
+
+  // 弹窗关闭
+  $('#copyModalClose').addEventListener('click', ()=> copyModal.classList.remove('show'));
+  copyModal.addEventListener('click', (e)=>{
+    if (e.target === copyModal) copyModal.classList.remove('show');
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape') copyModal.classList.remove('show');
+  });
+
+  /* ---------- 测试 ---------- */
+  testText.addEventListener('input', ()=> testDirty = true);
+
+  $('#resetTestBtn').addEventListener('click', ()=>{
+    testText.value = textarea.value;
+    testDirty = false;
+    testResult.innerHTML = '';
+  });
+
+  autoSync.addEventListener('change', ()=>{
+    if (autoSync.checked){
+      testDirty = false;
+      syncTestText();
+    }
+  });
+
+  $('#testBtn').addEventListener('click', ()=>{
+    const pat = buildPattern();
+    const flags = 'g' + buildFlags();
+    const text = testText.value;
+
+    if (!pat){
+      testResult.innerHTML = '<div class="err">正则表达式为空：请先输入示例文本。</div>';
+      return;
+    }
+    if (!text){
+      testResult.innerHTML = '<div class="err">测试文本为空：请在上方输入要匹配的内容，或点“同步为源文本”。</div>';
+      return;
+    }
+
+    let re;
+    try {
+      re = new RegExp(pat, flags);
+    } catch(err){
+      testResult.innerHTML = '<div class="err">正则语法错误：' + escHtml(err.message) + '</div>';
+      return;
+    }
+
+    let html = '', last = 0, count = 0, snippets = [];
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null){
+      if (m[0].length === 0){ re.lastIndex++; continue; }
+      count++;
+      html += escHtml(text.slice(last, m.index)) + '<mark>' + escHtml(m[0]) + '</mark>';
+      last = m.index + m[0].length;
+      snippets.push(m[0]);
+      if (count >= 300) break;
+    }
+    html += escHtml(text.slice(last));
+
+    testResult.innerHTML =
+      `<div style="margin-bottom:8px" class="${count?'ok':'err'}">
+         ${count ? '✓ 匹配到 ' + count + ' 处' : '✗ 没有匹配到任何内容'}
+       </div>
+       <div class="hl">${html}</div>` +
+      (snippets.length
+        ? `<div class="hint">匹配内容示例：${snippets.slice(0,8).map(s=>'「'+escHtml(s)+'」').join(' ')}</div>`
+        : `<div class="hint">检查一下：示例文本和测试文本是否一致？标注片段的内容类型是否匹配？（如把“A20240315001”标成“数字”，开头“A”会导致匹配失败）</div>`);
+  });
+
+  /* ---------- 初始化 ---------- */
+  testText.value = textarea.value;
+  render();
+})();
+</script>
+</body>
+</html>
