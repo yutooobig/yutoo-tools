@@ -34,5 +34,15 @@
   "title": "MD 笔记本",
   "desc": "一句话描述",
   "tags": ["工具"]
-}
+  },
+  {
+  "name": "kaleidoscope",
+  "title": "万花筒",
+  "tags": ["小游戏"]
+  },
+  {
+  "name": "regex-sg",
+  "title": "傻瓜正则工具",
+  "tags": ["工具"]
+  }
 ]

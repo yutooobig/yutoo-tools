@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>万花筒 · Kaleidoscope</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;height:100%;overflow:hidden;background:#06060b;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  canvas{display:block;position:fixed;inset:0;touch-action:none;cursor:crosshair;}
+
+  /* ---------- 提示 ---------- */
+  .hint{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    color:rgba(220,220,255,.55);font-size:15px;letter-spacing:.08em;
+    pointer-events:none;transition:opacity .8s ease;text-align:center;
+    text-shadow:0 0 24px rgba(120,100,255,.6);
+  }
+  .hint.hide{opacity:0;}
+
+  /* ---------- 控制面板 ---------- */
+  .panel{
+    position:fixed;left:50%;bottom:max(18px, env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;
+    padding:11px 18px;max-width:calc(100vw - 20px);
+    border-radius:18px;
+    background:rgba(18,18,30,.62);
+    backdrop-filter:blur(18px) saturate(160%);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 12px 44px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    color:#e9e9f5;font-size:13px;user-select:none;
+    z-index:10;
+  }
+  .grp{display:flex;align-items:center;gap:9px;}
+  .lab{font-size:12px;letter-spacing:.05em;color:rgba(233,233,245,.68);white-space:nowrap;}
+  .val{
+    font-variant-numeric:tabular-nums;font-weight:600;color:#a99cff;
+    min-width:20px;text-align:center;font-size:13px;
+  }
+  .sep{width:1px;height:22px;background:rgba(255,255,255,.10);}
+
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:118px;height:4px;border-radius:4px;outline:none;cursor:pointer;
+    background:linear-gradient(90deg,#7c5cff,#2ee6c8);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:#fff;border:none;cursor:pointer;
+    box-shadow:0 0 0 3px rgba(124,92,255,.28), 0 0 14px rgba(140,120,255,.9);
+    transition:transform .15s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15);}
+  input[type=range]::-moz-range-thumb{
+    width:15px;height:15px;border-radius:50%;background:#fff;border:none;cursor:pointer;
+    box-shadow:0 0 0 3px rgba(124,92,255,.28), 0 0 14px rgba(140,120,255,.9);
+  }
+
+  select{
+    font:inherit;font-size:13px;color:#e9e9f5;cursor:pointer;outline:none;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.13);
+    padding:6px 9px;border-radius:10px;
+    transition:background .18s ease,border-color .18s ease;
+  }
+  select:hover{background:rgba(255,255,255,.13);}
+  select option{background:#16161f;color:#e9e9f5;}
+
+  button{
+    font:inherit;font-size:13px;color:#e9e9f5;cursor:pointer;white-space:nowrap;
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.13);
+    padding:7px 12px;border-radius:10px;
+    transition:transform .14s ease, background .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  button:hover{background:rgba(255,255,255,.15);transform:translateY(-1px);}
+  button:active{transform:translateY(0) scale(.96);}
+  button.on{
+    background:rgba(124,92,255,.55);
+    border-color:rgba(170,150,255,.85);
+    box-shadow:0 0 18px rgba(124,92,255,.55);
+  }
+  button.on:hover{background:rgba(124,92,255,.68);}
+
+  @media (max-width:620px){
+    .panel{gap:10px;padding:10px 12px;border-radius:16px;}
+    input[type=range]{width:82px;}
+    .sep{display:none;}
+    button{padding:7px 10px;font-size:12px;}
+    .lab{font-size:11px;}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hint" id="hint">移动指针 / 手指 · 绘制万花筒</div>
+
+<div class="panel">
+  <div class="grp">
+    <span class="lab">分段</span>
+    <input type="range" id="seg" min="3" max="24" step="1" value="8">
+    <span class="val" id="segVal">8</span>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="grp">
+    <span class="lab">色彩</span>
+    <select id="mode">
+      <option value="rainbow">彩虹</option>
+      <option value="neon">霓虹</option>
+      <option value="fire">火焰</option>
+      <option value="ocean">深海</option>
+      <option value="candy">糖果</option>
+      <option value="aurora">极光</option>
+      <option value="mono">单色</option>
+    </select>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="grp">
+    <button id="btnFreeze">❄ 冻结帧</button>
+    <button id="btnRand">🎲 随机</button>
+    <button id="btnClear">🧹 清除</button>
+    <button id="btnSave">⬇ 导出</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ============================================================
+     基础环境
+     ============================================================ */
+  const cvs    = document.getElementById('c');
+  const ctx    = cvs.getContext('2d');
+  const sector = document.createElement('canvas');          // 折叠后的「单扇区」画布
+  const sctx   = sector.getContext('2d');
+
+  let W = 0, H = 0, cx = 0, cy = 0, R = 0, DPR = 1;
+
+  let segments  = 8;
+  let modeKey   = 'rainbow';
+  let frozen    = false;
+  let hueAccum  = 0;
+  let lastFolded = null;
+  let lastInputAt = -1e9;
+  let dirty = true;
+  let hasContent = false;
+  let frameTick = 0;
+
+  /* ============================================================
+     色彩模式
+     ============================================================ */
+  const MODES = {
+    rainbow: (h, r) => `hsl(${(h + r * 300) % 360}, 95%, ${58 + r * 9}%)`,
+    neon:    (h, r) => `hsl(${(h * 1.9) % 360}, 100%, ${62 + r * 6}%)`,
+    fire:    (h, r) => `hsl(${(h * 0.5 + r * 46) % 62}, 96%, ${52 + r * 15}%)`,
+    ocean:   (h, r) => `hsl(${172 + ((h * 0.35 + r * 70) % 132)}, 88%, ${53 + r * 13}%)`,
+    candy:   (h, r) => `hsl(${(h * 0.65 + r * 240) % 360}, 80%, ${77 - r * 6}%)`,
+    aurora:  (h, r) => `hsl(${128 + Math.sin(h * 0.019) * 68 + r * 55}, 92%, ${56 + r * 12}%)`,
+    mono:    (h, r) => `hsl(202, ${28 + r * 52}%, ${60 + r * 17}%)`
+  };
+
+  const colorFor = (h, r) => (MODES[modeKey] || MODES.rainbow)(h, r);
+
+  /* ============================================================
+     尺寸
+     ============================================================ */
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    W = window.innerWidth;
+    H = window.innerHeight;
+
+    cvs.width  = Math.round(W * DPR);
+    cvs.height = Math.round(H * DPR);
+    cvs.style.width  = W + 'px';
+    cvs.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    sector.width  = cvs.width;
+    sector.height = cvs.height;
+    sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    sctx.lineCap = 'round';
+    sctx.lineJoin = 'round';
+
+    cx = W / 2;
+    cy = H / 2;
+    R  = Math.hypot(W, H) / 2;
+
+    lastFolded = null;
+    hasContent = false;
+    dirty = true;
+  }
+
+  /* ============================================================
+     把任意点折叠进单个扇区楔形 [0, π/N]
+     ============================================================ */
+  function foldPoint(x, y) {
+    const dx = x - cx;
+    const dy = y - cy;
+    const r  = Math.hypot(dx, dy);
+    if (r < 3) return null;
+
+    const period = (Math.PI * 2) / segments;
+    const half   = period / 2;
+
+    let t = Math.atan2(dy, dx) % period;
+    if (t < 0) t += period;
+    if (t > half) t = period - t;      // 镜像折叠
+
+    return {
+      x: cx + Math.cos(t) * r,
+      y: cy + Math.sin(t) * r,
+      r: r
+    };
+  }
+
+  /* ============================================================
+     落笔
+     ============================================================ */
+  function addStroke(x, y) {
+    const p = foldPoint(x, y);
+    if (!p) { lastFolded = null; return; }
+
+    if (lastFolded) {
+      const dx = p.x - lastFolded.x;
+      const dy = p.y - lastFolded.y;
+      const d  = Math.hypot(dx, dy);
+
+      if (d > 0.8) {
+        const rr  = Math.min(1, p.r / R);
+        const col = colorFor(hueAccum, rr);
+        const w   = 2.4 + Math.min(d, 28) * 0.24;
+
+        sctx.strokeStyle = col;
+        sctx.lineCap = 'round';
+        sctx.lineJoin = 'round';
+
+        // 外发光
+        sctx.globalAlpha = 0.20;
+        sctx.lineWidth = w * 3.4;
+        sctx.beginPath();
+        sctx.moveTo(lastFolded.x, lastFolded.y);
+        sctx.lineTo(p.x, p.y);
+        sctx.stroke();
+
+        // 实心笔芯
+        sctx.globalAlpha = 1;
+        sctx.lineWidth = w;
+        sctx.beginPath();
+        sctx.moveTo(lastFolded.x, lastFolded.y);
+        sctx.lineTo(p.x, p.y);
+        sctx.stroke();
+
+        hasContent = true;
+      }
+    }
+
+    lastFolded = { x: p.x, y: p.y };
+  }
+
+  /* ============================================================
+     淡出（只在持续绘制时生效，停手即凝固）
+     ============================================================ */
+  function applyFade() {
+    sctx.globalCompositeOperation = 'destination-out';
+    sctx.fillStyle = 'rgba(0,0,0,0.011)';
+    sctx.fillRect(0, 0, W, H);
+    sctx.globalCompositeOperation = 'source-over';
+  }
+
+  function clearSector() {
+    sctx.globalCompositeOperation = 'source-over';
+    sctx.clearRect(0, 0, W, H);
+    lastFolded = null;
+    hasContent = false;
+    dirty = true;
+  }
+
+  /* ============================================================
+     合成：把单扇区旋转 + 镜像铺满整圈
+     ============================================================ */
+  function draw() {
+    const N = segments;
+    const period = (Math.PI * 2) / N;
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#06060b';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (let k = 0; k < N; k++) {
+      const a0 = k * period;
+      const a1 = a0 + period;
+
+      /* --- 1. 原样旋转复制 --- */
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a0, a1);
+      ctx.closePath();
+      ctx.clip();
+
+      ctx.translate(cx, cy);
+      ctx.rotate(a0);
+      ctx.translate(-cx, -cy);
+      ctx.drawImage(sector, 0, 0, W, H);
+      ctx.restore();
+
+      /* --- 2. 以扇区中线为镜面，反射复制 --- */
+      const A = (k + 1) * period / 2;   // 镜面方向角
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a0, a1);
+      ctx.closePath();
+      ctx.clip();
+
+      // 绕 (cx,cy)、方向角 A 的直线做反射
+      ctx.translate(cx, cy);
+      ctx.rotate(A);
+      ctx.scale(1, -1);
+      ctx.rotate(-A);
+      ctx.translate(-cx, -cy);
+      ctx.drawImage(sector, 0, 0, W, H);
+      ctx.restore();
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* ============================================================
+     主循环
+     ============================================================ */
+  let lastT = 0;
+
+  function loop(t) {
+    const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
+    lastT = t;
+
+    if (!frozen) {
+      hueAccum += dt * 72;
+
+      // 绘制中才有淡出，停手后图案保持不动
+      if (t - lastInputAt < 360 && hasContent) {
+        frameTick++;
+        if (frameTick % 5 === 0) {
+          applyFade();
+          dirty = true;
+        }
+      }
+    }
+
+    if (dirty) {
+      draw();
+      dirty = false;
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     指针输入
+     ============================================================ */
+  function toLocal(e) {
+    const rect = cvs.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onMove(e) {
+    if (frozen) return;
+    const p = toLocal(e);
+    addStroke(p.x, p.y);
+    lastInputAt = performance.now();
+    dirty = true;
+    hideHint();
+  }
+
+  cvs.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    lastFolded = null;
+    onMove(e);
+  }, { passive: false });
+
+  cvs.addEventListener('pointermove', e => {
+    if (frozen) return;
+    // 触摸时只有按下才绘制；鼠标悬停即绘制
+    if (e.pointerType !== 'mouse' && e.buttons === 0) return;
+    e.preventDefault();
+    onMove(e);
+  }, { passive: false });
+
+  cvs.addEventListener('pointerup',     () => { lastFolded = null; });
+  cvs.addEventListener('pointercancel', () => { lastFolded = null; });
+  cvs.addEventListener('pointerleave',  () => { lastFolded = null; });
+  cvs.addEventListener('contextmenu', e => e.preventDefault());
+
+  /* ============================================================
+     提示
+     ============================================================ */
+  const hintEl = document.getElementById('hint');
+  let hintHidden = false;
+  function hideHint() {
+    if (hintHidden) return;
+    hintHidden = true;
+    hintEl.classList.add('hide');
+  }
+  setTimeout(hideHint, 6000);
+
+  /* ============================================================
+     种子图案（首屏就有东西看）
+     ============================================================ */
+  function seedPattern() {
+    lastFolded = null;
+    let a = 0.9;
+    for (let i = 0; i < 170; i++) {
+      a += 0.145;
+      const r = 22 + i * (R * 0.0055);
+      if (r > R * 0.78) break;
+      addStroke(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      hueAccum += 3.2;
+    }
+    lastFolded = null;
+    dirty = true;
+  }
+
+  /* ============================================================
+     随机化
+     ============================================================ */
+  const SEG_POOL = [5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24];
+  const MODE_KEYS = Object.keys(MODES);
+  const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+  function randomize() {
+    segments = pick(SEG_POOL);
+    modeKey  = pick(MODE_KEYS);
+
+    segEl.value = segments;
+    segVal.textContent = segments;
+    modeEl.value = modeKey;
+
+    clearSector();
+    hueAccum = Math.random() * 360;
+    lastFolded = null;
+
+    // 随机游走，生成一段有机曲线
+    const steps = 260 + (Math.random() * 240 | 0);
+    let a = Math.random() * Math.PI * 2;
+    let r = R * (0.12 + Math.random() * 0.45);
+    let drift = (Math.random() - 0.5) * 0.06;
+
+    for (let i = 0; i < steps; i++) {
+      a += (Math.random() - 0.5) * 0.34 + drift;
+      r += (Math.random() - 0.5) * (R * 0.02) + Math.sin(i * 0.055) * 2.2;
+      r = Math.max(18, Math.min(R * 0.97, r));
+      addStroke(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      hueAccum += 2.6;
+    }
+    lastFolded = null;
+    dirty = true;
+  }
+
+  /* ============================================================
+     导出
+     ============================================================ */
+  function exportPNG() {
+    dirty = true;
+    draw();                       // 确保是最新一帧
+
+    const url = cvs.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.download = `kaleidoscope-${Date.now()}.png`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  /* ============================================================
+     UI 绑定
+     ============================================================ */
+  const segEl   = document.getElementById('seg');
+  const segVal  = document.getElementById('segVal');
+  const modeEl  = document.getElementById('mode');
+  const btnFreeze = document.getElementById('btnFreeze');
+  const btnRand   = document.getElementById('btnRand');
+  const btnClear  = document.getElementById('btnClear');
+  const btnSave   = document.getElementById('btnSave');
+
+  segEl.addEventListener('input', () => {
+    const v = parseInt(segEl.value, 10);
+    if (v === segments) return;
+    segments = v;
+    segVal.textContent = v;
+    clearSector();               // 折叠基准变了，清空重来
+  });
+
+  modeEl.addEventListener('change', () => {
+    modeKey = modeEl.value;
+  });
+
+  btnFreeze.addEventListener('click', () => {
+    frozen = !frozen;
+    btnFreeze.classList.toggle('on', frozen);
+    btnFreeze.textContent = frozen ? '❄ 已冻结' : '❄ 冻结帧';
+    lastFolded = null;
+  });
+
+  btnRand.addEventListener('click', randomize);
+
+  btnClear.addEventListener('click', () => {
+    clearSector();
+    hueAccum = Math.random() * 360;
+  });
+
+  btnSave.addEventListener('click', exportPNG);
+
+  /* ============================================================
+     启动
+     ============================================================ */
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resize();
+      seedPattern();
+    }, 180);
+  });
+
+  resize();
+  seedPattern();
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

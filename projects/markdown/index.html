@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Markdown 笔记 v1.6</title>
+    <title>Markdown 笔记 v1.7</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
@@ -1764,18 +1764,95 @@
         clearSearchHighlights();
     }
 
+    // 从正文首行自动生成文件名：去掉 Markdown 标记，截取前 12 个字
+    function autoFileName(content) {
+        const lines = (content || '').split('\n');
+        let text = '';
+        for (let i = 0; i < lines.length; i++) {
+            if (/^\s*```/.test(lines[i])) continue;
+            const clean = lines[i]
+                .replace(/^\s*#{1,6}\s*/, '')
+                .replace(/^\s*[-*+]\s+/, '')
+                .replace(/^\s*\d+[.)]\s+/, '')
+                .replace(/^\s*>\s?/, '')
+                .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+                .replace(/[*_`~]/g, '')
+                .replace(/[\\/:*?"<>|()（）\[\]{}]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (clean && !/^[-=*_\s]+$/.test(clean)) {
+                text = clean;
+                break;
+            }
+        }
+        if (!text) return '新建文件';
+        const chars = Array.from(text);
+        const short = (chars.length > 12 ? chars.slice(0, 12).join('') : text)
+            .replace(/[.\s]+$/, '')
+            .trim();
+        return short || '新建文件';
+    }
+
+    // 生成组内不重复的路径
+    function uniqueFilePath(group, baseName) {
+        const cleanName = baseName.endsWith('.md') ? baseName : baseName + '.md';
+        if (!state.files[`${group}/${cleanName}`]) return `${group}/${cleanName}`;
+        const stem = cleanName.replace(/\.md$/, '');
+        let i = 2;
+        while (state.files[`${group}/${stem} (${i}).md`]) i++;
+        return `${group}/${stem} (${i}).md`;
+    }
+
+    // 用当前编辑器内容直接建文件（不覆盖编辑器内容）
+    function createFileWithContent(content) {
+        const group = state.groups.has(state.currentGroup) ? state.currentGroup : '默认';
+        const path = uniqueFilePath(group, autoFileName(content));
+        const now = new Date().toISOString();
+        state.files[path] = {
+            name: path.split('/').pop(),
+            group: group,
+            content: content,
+            createdAt: now,
+            updatedAt: now,
+        };
+        state.currentFile = path;
+        state.currentGroup = group;
+        state.lastSavedContent = content;
+        state.isDirty = false;
+        state.selectedPaths.clear();
+        state.selectedPaths.add(path);
+        renderFileTree();
+        updateStatusBar();
+        return path;
+    }
+
     function saveCurrentFile() {
+        if (!state.editor) return;
+        const content = state.editor.getValue();
+
+        // 没有打开任何文件（直接在初始页面写）→ 自动以首行内容命名并保存
         if (!state.currentFile) {
-            showToast('请先选择或创建一个文件', 'error');
+            if (!content.trim()) {
+                showToast('内容为空，先写点什么吧', 'info');
+                return;
+            }
+            const newPath = createFileWithContent(content);
+            showToast(`已保存为新文件: ${state.files[newPath].name}`, 'success');
             return;
         }
+
         const file = state.files[state.currentFile];
-        const content = state.editor.getValue();
+        if (!file) {
+            state.currentFile = null;
+            saveCurrentFile();
+            return;
+        }
         file.content = content;
         file.updatedAt = new Date().toISOString();
         state.lastSavedContent = content;
         state.isDirty = false;
         updateStatusBar();
+        renderFileTree();
         showToast(`已保存: ${file.name}`, 'success');
         // Git 同步已移除
     }
@@ -2137,13 +2214,15 @@
         const fileEl = document.getElementById('statusFile');
         const charsEl = document.getElementById('statusChars');
         const searchEl = document.getElementById('statusSearch');
+        const content = state.editor ? state.editor.getValue() : '';
         if (state.currentFile && state.files[state.currentFile]) {
             const file = state.files[state.currentFile];
             fileEl.textContent = `📄 ${file.group}/${file.name}` + (state.isDirty ? ' ●' : '');
+        } else if (content.trim()) {
+            fileEl.textContent = '✏️ 未保存的新内容 ●';
         } else {
             fileEl.textContent = '未选择文件';
         }
-        const content = state.editor ? state.editor.getValue() : '';
         charsEl.textContent = `${content.length} 字符`;
         if (state.searchQuery) {
             searchEl.textContent = `🔍 搜索: "${state.searchQuery}"`;
@@ -2546,7 +2625,7 @@
         }, 5000);
 
         bindEvents();
-        showToast('欢迎使用 Markdown 笔记 v1.6 (无 Git)', 'info');
+        showToast('欢迎使用 Markdown 笔记 v1.7 (无 Git)', 'info');
     }
 
     function bindEvents() {

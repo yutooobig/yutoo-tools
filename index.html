@@ -135,7 +135,7 @@
 
   <div class="toolbar">
     <input id="search" type="search" placeholder="搜索项目名称或描述…" autocomplete="off">
-    <span class="count">6 个项目</span>
+    <span class="count">8 个项目</span>
   </div>
 
   <div class="grid" id="grid">
@@ -164,15 +164,24 @@
         <p>一句话描述</p>
         <div class="tags"><span class="tag">页面</span></div>
       </a>
-      <a class="card" href="./projects/markdown/" data-key="markdown  markdown">
-        <h2>markdown</h2>
+      <a class="card" href="./projects/markdown/" data-key="MD 笔记本 一句话描述 markdown 工具">
+        <h2>MD 笔记本</h2>
+        <p>一句话描述</p>
+        <div class="tags"><span class="tag">工具</span></div>
+      </a>
+      <a class="card" href="./projects/kaleidoscope/" data-key="kaleidoscope  kaleidoscope">
+        <h2>kaleidoscope</h2>
+        <p></p>
+      </a>
+      <a class="card" href="./projects/regex-sg/" data-key="regex-sg  regex-sg">
+        <h2>regex-sg</h2>
         <p></p>
       </a>
   </div>
   <div class="empty" id="empty" hidden>没有匹配的项目</div>
 
   <footer>
-    <span>2026 · 构建于 2026-10-17 15:40</span>
+    <span>2026 · 构建于 2026-10-18 14:28</span>
     <span>GitHub Pages · Cloudflare Pages</span>
   </footer>
 </div>
@@ -204,6 +213,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </script>
 </body>
 </html>
+<script>
 q = search.value.trim().toLowerCase();
     var shown = 0;
     cards.forEach(function (c) {
