@@ -268,6 +268,7 @@
         .upload-progress .up-cancel:hover { background:#fdf0ef; color:var(--danger); border-color:var(--danger); }
         .upload-progress .up-cancel:disabled { opacity:0.5; cursor:default; }
         body.uploading .toast-container { bottom:154px; }
+        body.compressing .toast-container { bottom:154px; }
         .header-btn.busy { opacity:0.65; cursor:progress; }
         .diff-container { display:flex; gap:16px; flex-wrap:wrap; }
         .diff-card { flex:1 1 200px; background:#f8f9fa; padding:12px; border-radius:var(--radius-sm); border:1px solid #e8e8e8; }
@@ -590,6 +591,22 @@
             <span class="up-fail" id="upFail" style="display:none;"></span>
             <span class="up-pct" id="upPct">0%</span>
             <button class="up-cancel" id="upCancel">取消</button>
+        </div>
+    </div>
+
+    <!-- 库内压缩进度面板 -->
+    <div class="upload-progress" id="compressProgress">
+        <div class="up-header">
+            <i class="fa-solid fa-spinner up-spin" id="cpIcon"></i>
+            <span id="cpTitle">正在压缩…</span>
+            <span class="up-count" id="cpCount">0 / 0</span>
+        </div>
+        <div class="up-bar"><div class="up-bar-fill" id="cpBarFill"></div></div>
+        <div class="up-foot">
+            <span class="up-file" id="cpFile">准备中…</span>
+            <span class="up-fail" id="cpFail" style="display:none;"></span>
+            <span class="up-pct" id="cpPct">0%</span>
+            <button class="up-cancel" id="cpCancel">取消</button>
         </div>
     </div>
     <input type="file" id="fileInput" accept="image/*" multiple>
@@ -1151,30 +1168,30 @@ function injectPNGMetadata(blob, metadataObj) {
 }
 
 // 降级为 8位色(256色) 纯净 PNG，然后注入元数据
-function compressAndInjectPNG(imageObj, colors = 256) {
+// onStage(label, fraction) 可选：用于向进度面板回报当前阶段，返回 Promise 时会等待一帧渲染
+function compressAndInjectPNG(imageObj, colors = 256, onStage) {
+    const notify = (label, fraction) => (onStage ? onStage(label, fraction) : Promise.resolve());
     return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(imageObj.fileBlob);
 
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-
-            // 填充白底，丢弃透明通道带来的干扰
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-
-            // 获取 RGBA 像素数据
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(url);
-
+        img.onload = async () => {
             try {
-                // 使用 UPNG.js 将图像转化为 256 色索引 PNG
-                const compressedArrayBuffer = UPNG.encode([imageData.data.buffer], canvas.width, canvas.height, colors);
-                const compressedBlob = new Blob([compressedArrayBuffer], { type: 'image/png' });
+                await notify('绘制画布', 0.15);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+
+                // 填充白底，丢弃透明通道带来的干扰
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+
+                // 获取 RGBA 像素数据
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
 
                 // NAI 元数据字段映射，uc是负向提示词的标准键名
                 const metaDict = {
@@ -1186,7 +1203,13 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                     scale: imageObj.scale
                 };
 
-                // 注入修复好的元数据
+                // 量化 + 编码是纯 CPU 计算，会阻塞主线程；
+                // 先把"编码中"和进度画到界面上，再进入计算，避免看起来像卡死
+                await notify('量化编码中', 0.5);
+                const compressedArrayBuffer = UPNG.encode([imageData.data.buffer], canvas.width, canvas.height, colors);
+                const compressedBlob = new Blob([compressedArrayBuffer], { type: 'image/png' });
+
+                await notify('写入提示词元数据', 0.85);
                 injectPNGMetadata(compressedBlob, metaDict).then(finalBlob => {
                     resolve(finalBlob);
                 }).catch(e => {
@@ -1195,6 +1218,7 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                 });
 
             } catch (e) {
+                try { URL.revokeObjectURL(url); } catch (_) { }
                 console.error('UPNG 压缩失败:', e);
                 reject(e);
             }
@@ -1238,15 +1262,6 @@ function compressAndInjectPNG(imageObj, colors = 256) {
             const fileInput = document.getElementById('fileInput');
             const uploadBtn = document.getElementById('uploadBtn');
             const uploadHintBtn = document.getElementById('uploadHintBtn');
-            const uploadProgressEl = document.getElementById('uploadProgress');
-            const upIcon = document.getElementById('upIcon');
-            const upTitle = document.getElementById('upTitle');
-            const upCount = document.getElementById('upCount');
-            const upBarFill = document.getElementById('upBarFill');
-            const upFile = document.getElementById('upFile');
-            const upFail = document.getElementById('upFail');
-            const upPct = document.getElementById('upPct');
-            const upCancel = document.getElementById('upCancel');
             const tokenLibraryBtn = document.getElementById('tokenLibraryBtn');
             const similarityBtn = document.getElementById('similarityBtn');
             const downloadModeBtn = document.getElementById('downloadModeBtn');
@@ -1384,121 +1399,179 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                 });
             }
 
-            // ==================== 上传解析进度 ====================
+            // ==================== 任务进度面板（上传解析 / 库内压缩共用） ====================
             let isUploading = false;
-            let uploadCancelled = false;
-            let upHideTimer = null;
+            let isCompressing = false;
 
-            // 让出一帧，保证进度条能真正绘制出来
+            // 让出主线程，保证进度条能真正绘制出来
             const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
+            const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
-            const upProgress = {
-                total: 0,
-                finished: 0,
-                success: 0,
-                failed: 0,
-                _sub: 0,
+            function createProgressPanel(refs) {
+                const el = document.getElementById(refs.root);
+                const iconEl = document.getElementById(refs.icon);
+                const titleEl = document.getElementById(refs.title);
+                const countEl = document.getElementById(refs.count);
+                const barEl = document.getElementById(refs.bar);
+                const fileEl = document.getElementById(refs.file);
+                const failEl = document.getElementById(refs.fail);
+                const pctEl = document.getElementById(refs.pct);
+                const cancelEl = document.getElementById(refs.cancel);
+                const bodyClass = refs.bodyClass || 'tasking';
 
-                start(total) {
-                    clearTimeout(upHideTimer);
-                    uploadCancelled = false;
-                    this.total = total;
-                    this.finished = 0;
-                    this.success = 0;
-                    this.failed = 0;
-                    this._sub = 0;
-                    uploadProgressEl.classList.remove('done', 'error');
-                    uploadProgressEl.classList.add('active');
-                    document.body.classList.add('uploading');
-                    upIcon.className = 'fa-solid fa-spinner up-spin';
-                    upTitle.textContent = total > 1 ? `正在解析 ${total} 张图片…` : '正在解析图片…';
-                    upCount.textContent = `0 / ${total}`;
-                    upFile.textContent = '准备中…';
-                    upFail.style.display = 'none';
-                    upFail.textContent = '';
-                    upCancel.style.display = '';
-                    upCancel.disabled = false;
-                    upCancel.textContent = '取消';
-                    this._render();
-                },
+                let hideTimer = null;
 
-                file(name, index) {
-                    upFile.textContent = `正在处理：${name}`;
-                    upCount.textContent = `${index} / ${this.total}`;
-                    this._sub = 0;
-                    this._render();
-                },
+                const panel = {
+                    total: 0,
+                    finished: 0,
+                    success: 0,
+                    failed: 0,
+                    _sub: 0,
+                    _name: '',
+                    busy: false,
+                    cancelRequested: false,
 
-                // 单张图片内部阶段进度（0~1），大批量时进度条也能连续推进
-                sub(fraction) {
-                    this._sub = Math.max(0, Math.min(1, fraction));
-                    this._render();
-                },
+                    start(cfg = {}) {
+                        const conf = typeof cfg === 'number' ? { total: cfg } : cfg;
+                        clearTimeout(hideTimer);
+                        this.total = conf.total || 0;
+                        this.finished = 0;
+                        this.success = 0;
+                        this.failed = 0;
+                        this._sub = 0;
+                        this._name = '';
+                        this.busy = true;
+                        this.cancelRequested = false;
+                        el.classList.remove('done', 'error');
+                        el.classList.add('active');
+                        // 上传 / 压缩面板互斥：开新任务时先收掉上一个，避免两个浮层叠在一起
+                        document.querySelectorAll('.upload-progress').forEach(node => {
+                            if (node !== el) node.classList.remove('active');
+                        });
+                        document.body.classList.remove('uploading', 'compressing');
+                        document.body.classList.add(bodyClass);
+                        iconEl.className = 'fa-solid fa-spinner up-spin';
+                        titleEl.textContent = conf.title || '正在处理…';
+                        countEl.textContent = `0 / ${this.total}`;
+                        fileEl.textContent = conf.hint || '准备中…';
+                        failEl.style.display = 'none';
+                        failEl.textContent = '';
+                        cancelEl.style.display = '';
+                        cancelEl.disabled = false;
+                        cancelEl.textContent = '取消';
+                        this._render();
+                    },
 
-                done(ok) {
-                    this.finished++;
-                    if (ok) this.success++; else this.failed++;
-                    this._sub = 0;
-                    if (this.failed > 0) {
-                        upFail.style.display = '';
-                        upFail.textContent = `失败 ${this.failed}`;
-                    }
-                    this._render();
-                },
+                    file(name, index) {
+                        this._name = name;
+                        this._sub = 0;
+                        fileEl.textContent = `正在处理：${name}`;
+                        countEl.textContent = `${index} / ${this.total}`;
+                        this._render();
+                    },
 
-                phase(title, fileText) {
-                    upTitle.textContent = title;
-                    if (fileText !== undefined) upFile.textContent = fileText;
-                    this._sub = 0;
-                    this._render();
-                },
+                    // 当前条目的内部阶段进度（0~1），让大批量任务的进度条连续推进
+                    sub(fraction) {
+                        this._sub = Math.max(0, Math.min(1, fraction));
+                        this._render();
+                    },
 
-                _render() {
-                    const ratio = this.total > 0 ? (this.finished + this._sub) / this.total : 0;
-                    const pct = Math.min(100, Math.round(ratio * 1000) / 10);
-                    upBarFill.style.width = pct + '%';
-                    upPct.textContent = (Number.isInteger(pct) ? pct : pct.toFixed(1)) + '%';
-                },
+                    // 阶段提示 + 让出一帧，确保文案画出来后再进入耗时计算（如 UPNG 编码）
+                    async stage(label, fraction) {
+                        this._sub = Math.max(0, Math.min(1, fraction));
+                        fileEl.textContent = this._name ? `${label} · ${this._name}` : label;
+                        this._render();
+                        await nextFrame();
+                    },
 
-                // state: done | failed | cancelled
-                finish(state) {
-                    uploadProgressEl.classList.remove('done', 'error');
-                    let icon = 'fa-circle-check';
-                    if (state === 'cancelled') {
-                        uploadProgressEl.classList.add('error');
-                        icon = 'fa-circle-xmark';
-                    } else if (state === 'failed') {
-                        uploadProgressEl.classList.add('error');
-                        icon = 'fa-triangle-exclamation';
-                    } else {
-                        uploadProgressEl.classList.add('done');
-                    }
-                    upIcon.className = 'fa-solid ' + icon;
-                    upTitle.textContent = state === 'cancelled' ? '已取消导入' : state === 'failed' ? '导入失败' : '导入完成';
-                    upCount.textContent = `${this.finished} / ${this.total}`;
-                    if (this.failed > 0) {
-                        upFail.style.display = '';
-                        upFail.textContent = `失败 ${this.failed}`;
-                    }
-                    upFile.textContent = state === 'cancelled'
-                        ? (this.success > 0 ? `已成功导入的 ${this.success} 张已保留` : '未导入任何图片')
-                        : state === 'failed' ? '请确认图片包含 NAI 生成信息' : `本次成功 ${this.success} 张`;
-                    upCancel.style.display = 'none';
-                    this._render();
-                    this.hide(state === 'done' ? 1800 : 2600);
-                },
+                    done(ok) {
+                        this.finished++;
+                        if (ok) this.success++; else this.failed++;
+                        this._sub = 0;
+                        if (this.failed > 0) {
+                            failEl.style.display = '';
+                            failEl.textContent = `失败 ${this.failed}`;
+                        }
+                        this._render();
+                    },
 
-                hide(delay = 0) {
-                    clearTimeout(upHideTimer);
-                    upHideTimer = setTimeout(() => {
-                        uploadProgressEl.classList.remove('active');
-                        document.body.classList.remove('uploading');
-                    }, delay);
-                },
-            };
+                    phase(title, hint) {
+                        titleEl.textContent = title;
+                        if (hint !== undefined) fileEl.textContent = hint;
+                        this._sub = 0;
+                        this._render();
+                    },
+
+                    _render() {
+                        const ratio = this.total > 0 ? (this.finished + this._sub) / this.total : 0;
+                        const pct = Math.min(100, Math.round(ratio * 1000) / 10);
+                        barEl.style.width = pct + '%';
+                        pctEl.textContent = (Number.isInteger(pct) ? pct : pct.toFixed(1)) + '%';
+                    },
+
+                    // state: done | failed | cancelled
+                    finish(opts = {}) {
+                        const state = opts.state || 'done';
+                        el.classList.remove('done', 'error');
+                        let icon = 'fa-circle-check';
+                        if (state === 'cancelled') {
+                            el.classList.add('error');
+                            icon = 'fa-circle-xmark';
+                        } else if (state === 'failed') {
+                            el.classList.add('error');
+                            icon = 'fa-triangle-exclamation';
+                        } else {
+                            el.classList.add('done');
+                        }
+                        iconEl.className = 'fa-solid ' + icon;
+                        titleEl.textContent = opts.title || (state === 'cancelled' ? '已取消' : state === 'failed' ? '处理失败' : '处理完成');
+                        countEl.textContent = `${this.finished} / ${this.total}`;
+                        if (this.failed > 0) {
+                            failEl.style.display = '';
+                            failEl.textContent = `失败 ${this.failed}`;
+                        }
+                        fileEl.textContent = opts.hint !== undefined ? opts.hint : '';
+                        cancelEl.style.display = 'none';
+                        this.busy = false;
+                        this._render();
+                        this.hide(state === 'done' ? 1800 : 2600);
+                    },
+
+                    hide(delay = 0) {
+                        clearTimeout(hideTimer);
+                        hideTimer = setTimeout(() => {
+                            el.classList.remove('active');
+                            document.body.classList.remove(bodyClass);
+                        }, delay);
+                    },
+                };
+
+                cancelEl.addEventListener('click', () => {
+                    if (!panel.busy) return;
+                    panel.cancelRequested = true;
+                    cancelEl.disabled = true;
+                    cancelEl.textContent = '取消中…';
+                    titleEl.textContent = '正在取消…';
+                });
+
+                return panel;
+            }
+
+            const upProgress = createProgressPanel({
+                root: 'uploadProgress', icon: 'upIcon', title: 'upTitle', count: 'upCount',
+                bar: 'upBarFill', file: 'upFile', fail: 'upFail', pct: 'upPct', cancel: 'upCancel',
+                bodyClass: 'uploading',
+            });
+
+            const compressProgress = createProgressPanel({
+                root: 'compressProgress', icon: 'cpIcon', title: 'cpTitle', count: 'cpCount',
+                bar: 'cpBarFill', file: 'cpFile', fail: 'cpFail', pct: 'cpPct', cancel: 'cpCancel',
+                bodyClass: 'compressing',
+            });
 
             async function handleFiles(files) {
                 if (isUploading) { showToast('正在导入中，请稍候…', 'info'); return; }
+                if (isCompressing) { showToast('正在压缩图片，请稍候…', 'info'); return; }
                 const allFiles = Array.from(files);
                 if (allFiles.length === 0) return;
                 const pngFiles = allFiles.filter(f => f.type === 'image/png' || f.name.toLowerCase().endsWith('.png'));
@@ -1513,10 +1586,13 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                 isUploading = true;
                 uploadBtn.disabled = true;
                 uploadBtn.classList.add('busy');
-                upProgress.start(processFiles.length);
+                upProgress.start({
+                    total: processFiles.length,
+                    title: processFiles.length > 1 ? `正在解析 ${processFiles.length} 张图片…` : '正在解析图片…',
+                });
 
                 for (let index = 0; index < processFiles.length; index++) {
-                    if (uploadCancelled) break;
+                    if (upProgress.cancelRequested) break;
                     const file = processFiles[index];
                     try {
                         upProgress.file(file.name, index + 1);
@@ -1572,7 +1648,7 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                 isUploading = false;
                 uploadBtn.disabled = false;
                 uploadBtn.classList.remove('busy');
-                const wasCancelled = uploadCancelled;
+                const wasCancelled = upProgress.cancelRequested;
 
                 if (successCount > 0) {
                     upProgress.phase('正在刷新画廊…', '整理列表与词条统计…');
@@ -1585,16 +1661,20 @@ function compressAndInjectPNG(imageObj, colors = 256) {
                     : '';
 
                 if (wasCancelled) {
-                    upProgress.finish('cancelled');
+                    upProgress.finish({
+                        state: 'cancelled',
+                        title: '已取消导入',
+                        hint: successCount > 0 ? `已成功导入的 ${successCount} 张已保留` : '未导入任何图片',
+                    });
                     showToast(`已取消导入${successCount > 0 ? `，本次已成功导入 ${successCount} 张` : ''}`, 'info');
                 } else if (successCount === 0 && failCount > 0) {
-                    upProgress.finish('failed');
+                    upProgress.finish({ state: 'failed', title: '导入失败', hint: '请确认图片包含 NAI 生成信息' });
                     showToast(`导入失败：${failCount} 张图片${detail}`, 'error');
                 } else if (failCount > 0) {
-                    upProgress.finish('done');
+                    upProgress.finish({ state: 'done', title: '导入完成', hint: `本次成功 ${successCount} 张` });
                     showToast(`成功导入 ${successCount} 张，${failCount} 张失败${detail}`, 'info');
                 } else {
-                    upProgress.finish('done');
+                    upProgress.finish({ state: 'done', title: '导入完成', hint: `本次成功 ${successCount} 张` });
                     showToast(`成功导入 ${successCount} 张图片`, 'success');
                 }
             }
@@ -3019,13 +3099,6 @@ async function importBackup(file) {
                 uploadBtn.addEventListener('click', () => fileInput.click());
                 uploadHintBtn.addEventListener('click', () => fileInput.click());
                 fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFiles(e.target.files); fileInput.value = ''; });
-                upCancel.addEventListener('click', () => {
-                    if (!isUploading) return;
-                    uploadCancelled = true;
-                    upCancel.disabled = true;
-                    upCancel.textContent = '取消中…';
-                    upTitle.textContent = '正在取消导入…';
-                });
 
                 document.getElementById('gallery').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = '#eef1ff'; });
                 document.getElementById('gallery').addEventListener('dragleave', (e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = ''; });
@@ -3296,45 +3369,101 @@ ${tokens.join('\n')}`;
                 // ↑ 新增：备份事件绑定 ↑
                 
                 compressStorageBtn.addEventListener('click', async () => {
-    if (selectedIds.size === 0) { showToast('请先选择要压缩的图片', 'error'); return; }
-    const imagesToCompress = allImages.filter(img => selectedIds.has(img.id) && !img.isCompressed);
+                    if (isCompressing) { showToast('压缩任务进行中，请稍候…', 'info'); return; }
+                    if (isUploading) { showToast('图片正在导入，请等导入结束再压缩', 'info'); return; }
+                    if (selectedIds.size === 0) { showToast('请先选择要压缩的图片', 'error'); return; }
+                    const imagesToCompress = allImages.filter(img => selectedIds.has(img.id) && !img.isCompressed);
 
-    if (imagesToCompress.length === 0) {
-        showToast('选中的图片都已被压缩过了！', 'info');
-        return;
-    }
+                    if (imagesToCompress.length === 0) {
+                        showToast('选中的图片都已被压缩过了！', 'info');
+                        return;
+                    }
 
-    if (!confirm(`确定要在系统内对这 ${imagesToCompress.length} 张原图进行永久重压缩吗？（将急剧减小空间，且依然保留提示词元数据）`)) return;
+                    if (!confirm(`确定要在系统内对这 ${imagesToCompress.length} 张原图进行永久重压缩吗？（将急剧减小空间，且依然保留提示词元数据）`)) return;
 
-    showToast(`正在压缩 ${imagesToCompress.length} 张图片，请勿关闭页面...`, 'info');
-    let successCount = 0;
+                    const beforeBytes = imagesToCompress.reduce((sum, img) => sum + (img.fileBlob ? img.fileBlob.size : 0), 0);
 
-    for (const img of imagesToCompress) {
-        try {
-            // 调用新的 PNG 压缩函数
-            const compressedBlob = await compressAndInjectPNG(img, 256);
+                    isCompressing = true;
+                    compressStorageBtn.disabled = true;
+                    compressStorageBtn.classList.add('busy');
+                    uploadBtn.disabled = true;
+                    compressProgress.start({
+                        total: imagesToCompress.length,
+                        title: `正在压缩 ${imagesToCompress.length} 张图片…`,
+                    });
 
-            if (compressedBlob) {
-                // 1. 替换内存中的数据
-                img.fileBlob = compressedBlob;
-                img.isCompressed = true;
+                    let successCount = 0;
+                    const failedNames = [];
 
-                // 2. 利用现有的 dbAddImage 更新/覆盖数据库中的原记录
-                await dbAddImage(img);
-                successCount++;
-            }
-        } catch (e) {
-            console.error(`压缩 ${img.name} 失败:`, e);
-        }
-    }
+                    for (let i = 0; i < imagesToCompress.length; i++) {
+                        if (compressProgress.cancelRequested) break;
+                        const img = imagesToCompress[i];
+                        compressProgress.file(img.name, i + 1);
+                        compressProgress.sub(0.05);
+                        await nextTick();
 
+                        try {
+                            // 调用 PNG 压缩函数，并把内部阶段回报给进度面板
+                            const compressedBlob = await compressAndInjectPNG(img, 256, (label, fraction) =>
+                                compressProgress.stage(label, fraction)
+                            );
 
-    showToast(`完成！成功压缩了 ${successCount} 张图片的存储体积`, 'success');
-    // 重新计算总体积并取消全选
-    updateTotalSizeDisplay();
-    selectedIds.clear();
-    renderGallery();
-});
+                            if (!compressedBlob) throw new Error('压缩结果为空');
+
+                            compressProgress.sub(0.95);
+                            await nextTick();
+
+                            // 1. 替换内存中的数据
+                            img.fileBlob = compressedBlob;
+                            img.isCompressed = true;
+
+                            // 2. 利用现有的 dbAddImage 更新/覆盖数据库中的原记录
+                            await dbAddImage(img);
+                            successCount++;
+                            compressProgress.done(true);
+                        } catch (e) {
+                            console.error(`压缩 ${img.name} 失败:`, e);
+                            failedNames.push(img.name);
+                            compressProgress.done(false);
+                        }
+                    }
+
+                    isCompressing = false;
+                    compressStorageBtn.disabled = false;
+                    compressStorageBtn.classList.remove('busy');
+                    uploadBtn.disabled = false;
+
+                    const afterBytes = imagesToCompress.reduce((sum, img) => sum + (img.fileBlob ? img.fileBlob.size : 0), 0);
+                    const savedBytes = Math.max(0, beforeBytes - afterBytes);
+                    const savedRatio = beforeBytes > 0 ? Math.round((savedBytes / beforeBytes) * 100) : 0;
+                    const failNote = failedNames.length > 0 ? `，${failedNames.length} 张失败` : '';
+
+                    // 重新计算总体积并取消全选
+                    compressProgress.phase('正在刷新画廊…', '重算体积与卡片状态…');
+                    await nextTick();
+                    updateTotalSizeDisplay();
+                    selectedIds.clear();
+                    renderGallery();
+
+                    if (compressProgress.cancelRequested) {
+                        compressProgress.finish({
+                            state: 'cancelled',
+                            title: '已取消压缩',
+                            hint: successCount > 0 ? `已完成 ${successCount} 张，节省 ${formatBytes(savedBytes)}` : '未压缩任何图片',
+                        });
+                        showToast(`已取消压缩${successCount > 0 ? `，已完成的 ${successCount} 张已保存` : ''}`, 'info');
+                    } else if (successCount === 0) {
+                        compressProgress.finish({ state: 'failed', title: '压缩失败', hint: '失败原因见控制台日志' });
+                        showToast(`压缩失败：${failedNames.length} 张图片未能处理`, 'error');
+                    } else {
+                        compressProgress.finish({
+                            state: 'done',
+                            title: '压缩完成',
+                            hint: `${formatBytes(beforeBytes)} → ${formatBytes(afterBytes)}，节省 ${savedRatio}%${failNote}`,
+                        });
+                        showToast(`完成！压缩 ${successCount} 张，节省 ${formatBytes(savedBytes)}（${savedRatio}%）`, 'success');
+                    }
+                });
 
             
 
