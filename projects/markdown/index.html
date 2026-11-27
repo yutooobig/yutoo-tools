@@ -457,11 +457,15 @@
         }
 
         .preview-pane {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
+            flex: 1 1 auto;
+            display: block;
+            align-self: stretch;
+            width: 100%;
             min-width: 0;
             max-width: 100%;
+            box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
             padding: 16px 18px;
             background: var(--bg-preview);
             transition: background var(--transition);
@@ -704,6 +708,7 @@
         .markdown-body {
             font-size: 15px;
             line-height: 1.8;
+            width: 100%;
             max-width: 800px;
             margin: 0 auto;
             color: var(--text);
@@ -1378,7 +1383,9 @@
                 </div>
                 <div class="editor-pane" id="previewPane" style="display:none;">
                     <div class="pane-header"><i class="fas fa-book"></i> 预览</div>
-                    <div class="preview-pane markdown-body" id="previewContent"></div>
+                    <div class="preview-pane" id="previewScroll">
+                        <div class="markdown-body" id="previewContent"></div>
+                    </div>
                 </div>
             </div>
         </div>
