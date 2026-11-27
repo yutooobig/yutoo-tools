@@ -1550,31 +1550,19 @@
         state.md = new markdownit({
             html: true,
             linkify: true,
-            typographer: true,
-            highlight: function(str, lang) {
-                if (lang && state.hljs && state.hljs.getLanguage(lang)) {
-                    try {
-                        return `<pre class="hljs"><code>${state.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
-                    } catch (e) {}
-                }
-                return `<pre class="hljs"><code>${state.md.utils.escapeHtml(str)}</code></pre>`;
-            }
+            typographer: true
         });
-        const defaultFence = state.md.renderer.rules.fence;
-        state.md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+        // 这里只产出 <pre><code>；代码块外壳（语言名 + 复制按钮）由 enhanceCodeBlocks 统一补，
+        // 这样围栏代码块、四空格缩进代码块、手写 <pre> 都能拿到复制按钮
+        state.md.renderer.rules.fence = function(tokens, idx) {
             const token = tokens[idx];
             const content = token.content;
             const lang = token.info ? token.info.trim().split(/\s+/g)[0] : '';
-            const highlighted = state.hljs && lang && state.hljs.getLanguage(lang) ?
+            const highlighted = (lang && state.hljs && state.hljs.getLanguage(lang)) ?
                 state.hljs.highlight(content, { language: lang, ignoreIllegals: true }).value :
                 state.md.utils.escapeHtml(content);
-            const langLabel = lang || 'text';
-            return `<div class="code-block-wrapper">` +
-                `<div class="code-header">` +
-                `<span class="code-lang">${state.md.utils.escapeHtml(langLabel)}</span>` +
-                `<button class="copy-btn" data-code="${state.md.utils.escapeHtml(content)}" title="复制代码">${copyBtnHtml('复制')}</button>` +
-                `</div>` +
-                `<pre class="hljs"><code class="language-${langLabel}">${highlighted}</code></pre></div>`;
+            const langClass = lang ? ` class="language-${state.md.utils.escapeHtml(lang)}"` : '';
+            return `<pre class="hljs"><code${langClass}>${highlighted}</code></pre>\n`;
         };
         return state.md;
     }
@@ -1637,18 +1625,63 @@
         });
     }
 
+    function escapeAttr(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    // 给预览里"所有"代码块补顶部栏和复制按钮：
+    // 不论来自 ``` 围栏、四空格缩进，还是直接写进 markdown 的 <pre>，都会补上
+    function enhanceCodeBlocks(root) {
+        root.querySelectorAll('pre').forEach(function(pre) {
+            let wrap = pre.closest('.code-block-wrapper');
+
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'code-block-wrapper';
+                pre.parentNode.insertBefore(wrap, pre);
+                wrap.appendChild(pre);
+            }
+
+            // 已经有顶部栏就不重复插
+            if (wrap.firstElementChild && wrap.firstElementChild.classList.contains('code-header')) return;
+
+            const code = pre.querySelector('code');
+            const cls = (code && code.className) || '';
+            const langMatch = cls.match(/language-([\w+#.-]+)/i);
+            const lang = langMatch ? langMatch[1] : 'text';
+            const raw = code ? code.textContent : pre.textContent;
+
+            const header = document.createElement('div');
+            header.className = 'code-header';
+            header.innerHTML =
+                '<span class="code-lang">' + escapeAttr(lang) + '</span>' +
+                '<button class="copy-btn" data-code="' + escapeAttr(raw) + '" title="复制代码">' +
+                copyBtnHtml('复制') + '</button>';
+            wrap.insertBefore(header, pre);
+        });
+    }
+
     function updatePreview() {
         const content = state.editor ? state.editor.getValue() : '';
         const previewEl = document.getElementById('previewContent');
         if (state.md && previewEl) {
             previewEl.innerHTML = state.md.render(content);
+            enhanceCodeBlocks(previewEl);
             wrapTables(previewEl);
             previewEl.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const code = this.getAttribute('data-code');
-                    copyToClipboard(decodeHtmlEntities(code));
+                    // 直接读 DOM 里的代码文本，避免靠 HTML 属性传参时的转义问题（代码里常有引号）
+                    const wrap = this.closest('.code-block-wrapper');
+                    const preEl = wrap ? wrap.querySelector('pre') : null;
+                    const codeEl = preEl ? (preEl.querySelector('code') || preEl) : null;
+                    const text = codeEl ? codeEl.textContent : decodeHtmlEntities(this.getAttribute('data-code') || '');
+                    copyToClipboard(text);
                     this.innerHTML = CHECK_ICON + '<span class="copy-txt">已复制</span>';
                     this.classList.add('copied');
                     setTimeout(() => {
